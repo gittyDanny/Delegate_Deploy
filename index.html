@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="de">
+ <head><script src="/_sdk/telemetry_sdk.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DELEGAT Prototyp</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <style>
+        body { font-family: 'DM Sans', sans-serif; }
+        .tab-active { border-bottom: 2px solid #0EA5E9; color: #0EA5E9; }
+        .email-selected { border-left: 3px solid #0EA5E9; background: #f0f9ff; }
+        .step-done { color: #10B981; }
+        .step-active { color: #0EA5E9; font-weight: 600; }
+        .fade-in { animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/editing_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/resizing_sdk.js" type="text/javascript"></script>
+ </head>
+ <body data-template-id="__page-root" class="min-h-screen">
+  <header data-template-id="header-bg" class="canva-header bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+   <div class="flex items-center gap-3">
+    <div class="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-bold text-sm">
+     D
+    </div>
+    <h1 data-template-id="app-title" class="canva-text font-bold text-lg"></h1><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full flex items-center gap-1"> <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block"></span> Agent aktiv </span>
+   </div><span data-template-id="kanzlei-name" class="canva-text text-sm text-gray-500"></span>
+  </header>
+  <nav class="bg-white border-b border-gray-100 px-6">
+   <div class="flex gap-6">
+    <button id="tab-cockpit" class="py-3 text-sm font-medium tab-active" onclick="switchTab('cockpit')">Cockpit</button> <button id="tab-anon" class="py-3 text-sm font-medium text-gray-500 hover:text-gray-700" onclick="switchTab('anon')">Anonymisierung</button> <button id="tab-roadmap" class="py-3 text-sm font-medium text-gray-500 hover:text-gray-700" onclick="switchTab('roadmap')">Roadmap</button>
+   </div>
+  </nav><!-- COCKPIT -->
+  <main id="view-cockpit" class="p-6 max-w-7xl mx-auto">
+   <!-- Stats -->
+   <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
+     <p class="text-xs text-gray-500 mb-1">In Warteschlange</p>
+     <p id="stat-queue" class="text-2xl font-bold text-slate-900">3</p>
+    </div>
+    <div class="bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
+     <p class="text-xs text-gray-500 mb-1">Heute erledigt</p>
+     <p id="stat-done" class="text-2xl font-bold text-slate-900">0</p>
+    </div>
+    <div class="bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
+     <p class="text-xs text-gray-500 mb-1">Min. gespart</p>
+     <p id="stat-saved" class="text-2xl font-bold text-slate-900">0</p>
+    </div>
+    <div class="bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
+     <p class="text-xs text-gray-500 mb-1">DSGVO-Events</p>
+     <p id="stat-gdpr" class="text-2xl font-bold text-slate-900">0</p>
+    </div>
+   </div>
+   <div class="grid grid-cols-12 gap-6">
+    <!-- Email Queue -->
+    <div class="col-span-3">
+     <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">E-Mail-Warteschlange</h2>
+     <div id="email-list" class="space-y-2">
+      <button onclick="selectEmail(0)" id="email-0" class="email-selected w-full text-left p-3 bg-white rounded-lg border border-gray-100 shadow-sm"> <p class="font-semibold text-sm text-slate-900">Büromaterial GmbH</p>
+       <div class="flex items-center gap-2 mt-1">
+        <span class="text-xs px-1.5 py-0.5 bg-sky-100 text-sky-700 rounded">Eingangsrechnung</span> <span class="text-xs text-gray-400">284,50€</span>
+       </div><p class="text-xs text-gray-400 mt-1">09:14</p></button> <button onclick="selectEmail(1)" id="email-1" class="w-full text-left p-3 bg-white rounded-lg border border-gray-100 shadow-sm"> <p class="font-semibold text-sm text-slate-900">Klaus Müller <span class="inline-block w-2 h-2 bg-red-500 rounded-full ml-1"></span></p>
+       <div class="flex items-center gap-2 mt-1">
+        <span class="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Mandantenanfrage</span>
+       </div><p class="text-xs text-gray-400 mt-1">09:31</p></button> <button onclick="selectEmail(2)" id="email-2" class="w-full text-left p-3 bg-white rounded-lg border border-gray-100 shadow-sm"> <p class="font-semibold text-sm text-slate-900">SoftwarePro GmbH</p>
+       <div class="flex items-center gap-2 mt-1">
+        <span class="text-xs px-1.5 py-0.5 bg-sky-100 text-sky-700 rounded">Eingangsrechnung</span> <span class="text-xs text-gray-400">1.190,00€</span>
+       </div><p class="text-xs text-gray-400 mt-1">10:02</p></button>
+     </div>
+    </div><!-- Detail -->
+    <div class="col-span-6">
+     <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Aufgaben-Detail</h2>
+     <div class="bg-white rounded-lg border border-gray-100 shadow-sm p-5">
+      <div id="detail-header">
+       <h3 id="detail-title" class="font-bold text-lg text-slate-900">Büromaterial GmbH</h3>
+       <p id="detail-type" class="text-sm text-gray-500 mb-3">Eingangsrechnung · 284,50€</p>
+       <div id="detail-body" class="text-sm text-gray-600 bg-gray-50 rounded p-3 mb-4 leading-relaxed">
+        Sehr geehrte Damen und Herren,<br><br>
+         anbei erhalten Sie unsere Rechnung Nr. 2024-0847 über Büromaterial.<br>
+         Nettobetrag: 239,00€<br>
+         MwSt. (19%): 45,50€<br>
+         Brutto: 284,50€<br><br>
+         Zahlungsziel: 14 Tage
+       </div>
+      </div><!-- Progress -->
+      <div class="mb-4">
+       <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Fortschritt</p>
+       <div class="space-y-1.5 text-sm">
+        <p id="step-ready" class="step-active">● Bereit</p>
+        <p id="step-anon" class="text-gray-400">○ Anonymisierung</p>
+        <p id="step-ai" class="text-gray-400">○ KI-Analyse</p>
+        <p id="step-approve" class="text-gray-400">○ Freigabe</p>
+       </div>
+      </div><!-- Agent Button -->
+      <div id="agent-btn-wrap">
+       <button id="agent-btn" onclick="startAgent()" class="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition"> <i data-lucide="play" style="width:18px;height:18px"></i> Agent starten </button>
+      </div><!-- AI Result (hidden initially) -->
+      <div id="ai-result" class="hidden fade-in">
+       <div class="border border-sky-200 bg-sky-50 rounded-lg p-4 mb-4">
+        <div class="flex items-center justify-between mb-3">
+         <h4 class="font-semibold text-slate-900">KI-Ergebnis</h4><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">Konfidenz: hoch</span>
+        </div>
+        <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Buchungsvorschlag</p>
+        <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+         <div class="bg-white rounded p-2 border border-gray-100">
+          <p class="text-xs text-gray-400">Soll</p>
+          <p class="font-semibold text-slate-900">4980 · Bürobedarf</p>
+         </div>
+         <div class="bg-white rounded p-2 border border-gray-100">
+          <p class="text-xs text-gray-400">Haben</p>
+          <p class="font-semibold text-slate-900">1600 · Verbindlichkeiten</p>
+         </div>
+        </div>
+        <div class="flex gap-4 text-sm text-gray-600">
+         <span>Netto: 239,00€</span> <span>MwSt: 45,50€</span> <span class="font-semibold text-slate-900">Brutto: 284,50€</span>
+        </div>
+       </div>
+       <div class="flex items-center gap-2 mb-4 text-amber-600 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <i data-lucide="alert-triangle" style="width:16px;height:16px"></i> <span>Mensch im Loop: Freigabe durch Steuerberater erforderlich</span>
+       </div>
+       <div class="flex gap-3">
+        <button onclick="handleAction('approve')" class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-lg flex items-center justify-center gap-1.5 transition text-sm"> <i data-lucide="check" style="width:16px;height:16px"></i> Freigeben </button> <button onclick="handleAction('escalate')" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg flex items-center justify-center gap-1.5 transition text-sm"> <i data-lucide="arrow-up" style="width:16px;height:16px"></i> Eskalieren </button> <button onclick="handleAction('reject')" class="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg flex items-center justify-center gap-1.5 transition text-sm"> <i data-lucide="x" style="width:16px;height:16px"></i> Ablehnen </button>
+       </div>
+      </div><!-- Action Feedback -->
+      <div id="action-feedback" class="hidden fade-in mt-4 p-4 rounded-lg text-center"></div>
+     </div>
+    </div><!-- Audit Trail -->
+    <div class="col-span-3">
+     <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Audit-Trail</h2>
+     <div id="audit-trail" class="bg-white rounded-lg border border-gray-100 shadow-sm p-4 space-y-3 text-xs">
+      <div class="border-l-2 border-sky-300 pl-3">
+       <p class="text-gray-400">08:59:01</p>
+       <p class="text-slate-700">DELEGAT gestartet. AVV aktiv.</p>
+      </div>
+     </div>
+    </div>
+   </div>
+  </main><!-- ANONYMISIERUNG -->
+  <section id="view-anon" class="hidden p-6 max-w-5xl mx-auto">
+   <h2 data-template-id="anon-title" class="canva-text text-xl font-bold text-center mb-8"></h2>
+   <div class="grid grid-cols-3 gap-4 items-start mb-8">
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+     <h3 class="font-semibold text-sm text-red-700 mb-3 uppercase tracking-wide">Original E-Mail</h3>
+     <div class="space-y-2 text-sm text-slate-700">
+      <p><span class="text-gray-400">Von:</span> <span class="bg-red-100 px-1 rounded">Klaus Müller</span></p>
+      <p><span class="text-gray-400">IBAN:</span> <span class="bg-red-100 px-1 rounded">DE89 3704 0044 0532 0130 00</span></p>
+      <p><span class="text-gray-400">E-Mail:</span> <span class="bg-red-100 px-1 rounded">k.mueller@web.de</span></p>
+      <p><span class="text-gray-400">Betrag:</span> 284,50€</p>
+     </div>
+    </div>
+    <div class="flex flex-col items-center">
+     <div class="text-gray-300 text-2xl mb-2">
+      ➜
+     </div>
+     <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 w-full">
+      <h3 class="font-semibold text-sm text-emerald-700 mb-3 uppercase tracking-wide">Nach Anonymisierung</h3>
+      <div class="space-y-2 text-sm text-slate-700">
+       <p><span class="text-gray-400">Von:</span> <span class="bg-emerald-100 px-1 rounded font-mono">[PERSON_1]</span></p>
+       <p><span class="text-gray-400">IBAN:</span> <span class="bg-emerald-100 px-1 rounded font-mono">[IBAN_1]</span></p>
+       <p><span class="text-gray-400">E-Mail:</span> <span class="bg-emerald-100 px-1 rounded font-mono">[EMAIL_2]</span></p>
+       <p><span class="text-gray-400">Betrag:</span> 284,50€</p>
+      </div>
+     </div>
+    </div>
+    <div class="flex flex-col items-center">
+     <div class="text-gray-300 text-2xl mb-2">
+      ➜
+     </div>
+     <div class="bg-sky-50 border border-sky-200 rounded-lg p-4 w-full">
+      <h3 class="font-semibold text-sm text-sky-700 mb-3 uppercase tracking-wide">Was KI sieht</h3>
+      <div class="space-y-2 text-sm text-slate-700">
+       <p><span class="text-gray-400">Von:</span> <span class="bg-sky-100 px-1 rounded font-mono">[PERSON_1]</span></p>
+       <p><span class="text-gray-400">IBAN:</span> <span class="bg-sky-100 px-1 rounded font-mono">[IBAN_1]</span></p>
+       <p><span class="text-gray-400">E-Mail:</span> <span class="bg-sky-100 px-1 rounded font-mono">[EMAIL_2]</span></p>
+       <p><span class="text-gray-400">Betrag:</span> 284,50€</p>
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="bg-white border border-gray-100 rounded-lg p-4 text-center shadow-sm">
+     <p class="text-2xl mb-1">👤</p>
+     <p class="font-bold text-slate-900">3</p>
+     <p class="text-xs text-gray-500">Namen ersetzt</p>
+    </div>
+    <div class="bg-white border border-gray-100 rounded-lg p-4 text-center shadow-sm">
+     <p class="text-2xl mb-1">🏦</p>
+     <p class="font-bold text-slate-900">2</p>
+     <p class="text-xs text-gray-500">IBANs ersetzt</p>
+    </div>
+    <div class="bg-white border border-gray-100 rounded-lg p-4 text-center shadow-sm">
+     <p class="text-2xl mb-1">📧</p>
+     <p class="font-bold text-slate-900">4</p>
+     <p class="text-xs text-gray-500">E-Mails ersetzt</p>
+    </div>
+   </div>
+   <p data-template-id="anon-info" class="canva-text text-sm text-center text-gray-500 bg-gray-50 rounded-lg p-3 border border-gray-100"></p>
+  </section><!-- ROADMAP -->
+  <section id="view-roadmap" class="hidden p-6 max-w-4xl mx-auto">
+   <h2 data-template-id="roadmap-title" class="canva-text text-xl font-bold text-center mb-8"></h2>
+   <div class="space-y-5">
+    <div data-template-id="stage-1-card" class="canva-card rounded-xl p-5 border-2 border-emerald-200">
+     <div class="flex items-center gap-2 mb-3">
+      <span class="w-3 h-3 bg-emerald-500 rounded-full"></span>
+      <h3 data-template-id="stage-1-title" class="canva-text font-bold"></h3>
+     </div>
+     <div class="grid grid-cols-2 gap-2 text-sm text-slate-700 mb-3">
+      <p>✅ Cockpit mit E-Mail-Queue</p>
+      <p>✅ Anonymisierung (simuliert)</p>
+      <p>✅ Simulierte KI-Analyse</p>
+      <p>✅ Mensch-in-der-Schleife Freigabe</p>
+      <p>✅ Audit-Trail</p>
+     </div>
+     <p class="text-xs text-gray-400">Zeitrahmen: 1–2 Wochen · Tech: Canva Prototyp, Mock-Daten</p>
+    </div>
+    <div data-template-id="stage-2-card" class="canva-card rounded-xl p-5 border-2 border-sky-200">
+     <div class="flex items-center gap-2 mb-3">
+      <span class="w-3 h-3 bg-sky-500 rounded-full"></span>
+      <h3 data-template-id="stage-2-title" class="canva-text font-bold"></h3>
+     </div>
+     <div class="grid grid-cols-2 gap-2 text-sm text-slate-700 mb-3">
+      <p>🔵 DATEV API-Anbindung</p>
+      <p>🔵 E-Mail-Eingang (IMAP/Exchange)</p>
+      <p>🔵 Live-Anonymisierung (Regex + NER)</p>
+      <p>🔵 GPT-4 Integration</p>
+      <p>🔵 Pilot mit 1–2 Kanzleien</p>
+     </div>
+     <p class="text-xs text-gray-400">Zeitrahmen: 3–6 Monate · Tech: Python, FastAPI, PostgreSQL, OpenAI API</p>
+    </div>
+    <div data-template-id="stage-3-card" class="canva-card rounded-xl p-5 border-2 border-purple-200">
+     <div class="flex items-center gap-2 mb-3">
+      <span class="w-3 h-3 bg-purple-500 rounded-full"></span>
+      <h3 data-template-id="stage-3-title" class="canva-text font-bold"></h3>
+     </div>
+     <div class="grid grid-cols-2 gap-2 text-sm text-slate-700 mb-3">
+      <p>🟣 ISO 27001 Zertifizierung</p>
+      <p>🟣 Selbstgehostetes LLM (On-Premise)</p>
+      <p>🟣 DATEV Marketplace Integration</p>
+      <p>🟣 Multi-Mandanten-Fähigkeit</p>
+      <p>🟣 Rollout für 50+ Kanzleien</p>
+     </div>
+     <p class="text-xs text-gray-400">Zeitrahmen: 12–24 Monate · Tech: Kubernetes, LLaMA 3, SOC 2 Compliance</p>
+    </div>
+   </div>
+  </section>
+  <script>
+    lucide.createIcons();
+
+    const emails = [
+        { title: 'Büromaterial GmbH', type: 'Eingangsrechnung', amount: '284,50€', time: '09:14', body: 'Sehr geehrte Damen und Herren,<br><br>anbei erhalten Sie unsere Rechnung Nr. 2024-0847 über Büromaterial.<br>Nettobetrag: 239,00€<br>MwSt. (19%): 45,50€<br>Brutto: 284,50€<br><br>Zahlungsziel: 14 Tage' },
+        { title: 'Klaus Müller', type: 'Mandantenanfrage', amount: '', time: '09:31', body: 'Guten Tag,<br><br>ich habe eine Frage zu meiner Einkommensteuererklärung 2023. Können Sie mir mitteilen, ob meine Belege vollständig sind?<br><br>Mit freundlichen Grüßen<br>Klaus Müller' },
+        { title: 'SoftwarePro GmbH', type: 'Eingangsrechnung', amount: '1.190,00€', time: '10:02', body: 'Rechnung Nr. SP-2024-1203<br><br>Jahreslizenzen Buchhaltungssoftware<br>Netto: 1.000,00€<br>MwSt. (19%): 190,00€<br>Brutto: 1.190,00€<br><br>Zahlungsziel: 30 Tage' }
+    ];
+
+    let selectedEmail = 0;
+    let agentRan = false;
+
+    function selectEmail(idx) {
+        selectedEmail = idx;
+        agentRan = false;
+        document.querySelectorAll('#email-list button').forEach((el, i) => {
+            el.className = i === idx ? 'email-selected w-full text-left p-3 bg-white rounded-lg border border-gray-100 shadow-sm' : 'w-full text-left p-3 bg-white rounded-lg border border-gray-100 shadow-sm';
+        });
+        const e = emails[idx];
+        document.getElementById('detail-title').textContent = e.title;
+        document.getElementById('detail-type').textContent = e.type + (e.amount ? ' · ' + e.amount : '');
+        document.getElementById('detail-body').innerHTML = e.body;
+        document.getElementById('agent-btn-wrap').classList.remove('hidden');
+        document.getElementById('ai-result').classList.add('hidden');
+        document.getElementById('action-feedback').classList.add('hidden');
+        resetSteps();
+    }
+
+    function resetSteps() {
+        document.getElementById('step-ready').className = 'step-active';
+        document.getElementById('step-anon').className = 'text-gray-400';
+        document.getElementById('step-ai').className = 'text-gray-400';
+        document.getElementById('step-approve').className = 'text-gray-400';
+    }
+
+    function startAgent() {
+        document.getElementById('agent-btn-wrap').classList.add('hidden');
+        agentRan = true;
+
+        // Animate steps
+        setTimeout(() => {
+            document.getElementById('step-ready').className = 'step-done';
+            document.getElementById('step-ready').textContent = '✓ Bereit';
+            document.getElementById('step-anon').className = 'step-active';
+            document.getElementById('step-anon').textContent = '● Anonymisierung';
+            addAudit('Anonymisierung abgeschlossen');
+        }, 600);
+
+        setTimeout(() => {
+            document.getElementById('step-anon').className = 'step-done';
+            document.getElementById('step-anon').textContent = '✓ Anonymisierung';
+            document.getElementById('step-ai').className = 'step-active';
+            document.getElementById('step-ai').textContent = '● KI-Analyse';
+            addAudit('KI-Analyse abgeschlossen');
+            document.getElementById('stat-gdpr').textContent = '1';
+        }, 1400);
+
+        setTimeout(() => {
+            document.getElementById('step-ai').className = 'step-done';
+            document.getElementById('step-ai').textContent = '✓ KI-Analyse';
+            document.getElementById('step-approve').className = 'step-active';
+            document.getElementById('step-approve').textContent = '● Freigabe';
+            document.getElementById('ai-result').classList.remove('hidden');
+            lucide.createIcons();
+        }, 2200);
+    }
+
+    function handleAction(action) {
+        const fb = document.getElementById('action-feedback');
+        fb.classList.remove('hidden');
+        if (action === 'approve') {
+            fb.className = 'fade-in mt-4 p-4 rounded-lg text-center bg-emerald-50 border border-emerald-200 text-emerald-700';
+            fb.innerHTML = '✓ Buchung freigegeben und an DATEV übermittelt.';
+            document.getElementById('stat-done').textContent = String(parseInt(document.getElementById('stat-done').textContent) + 1);
+            document.getElementById('stat-saved').textContent = String(parseInt(document.getElementById('stat-saved').textContent) + 4);
+            addAudit('Buchung freigegeben (StB)');
+        } else if (action === 'escalate') {
+            fb.className = 'fade-in mt-4 p-4 rounded-lg text-center bg-amber-50 border border-amber-200 text-amber-700';
+            fb.innerHTML = '↑ An Senior-Steuerberater eskaliert.';
+            addAudit('Eskaliert an Senior-StB');
+        } else {
+            fb.className = 'fade-in mt-4 p-4 rounded-lg text-center bg-red-50 border border-red-200 text-red-700';
+            fb.innerHTML = '✗ Vorschlag abgelehnt. Manuelle Bearbeitung erforderlich.';
+            addAudit('Vorschlag abgelehnt');
+        }
+        document.getElementById('ai-result').querySelector('.flex.gap-3').classList.add('hidden');
+        document.getElementById('step-approve').className = 'step-done';
+        document.getElementById('step-approve').textContent = '✓ Freigabe';
+    }
+
+    function addAudit(text) {
+        const trail = document.getElementById('audit-trail');
+        const now = new Date();
+        const time = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const entry = document.createElement('div');
+        entry.className = 'border-l-2 border-sky-300 pl-3 fade-in';
+        entry.innerHTML = `<p class="text-gray-400">${time}</p><p class="text-slate-700">${text}</p>`;
+        trail.appendChild(entry);
+    }
+
+    function switchTab(tab) {
+        ['cockpit', 'anon', 'roadmap'].forEach(t => {
+            document.getElementById('view-' + t)?.classList.toggle('hidden', t !== tab);
+            document.getElementById('tab-' + t).className = t === tab ? 'py-3 text-sm font-medium tab-active' : 'py-3 text-sm font-medium text-gray-500 hover:text-gray-700';
+        });
+    }
+</script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a10e608cb5d51a34',t:'MTc4MjMzMTgzOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
