@@ -3,40 +3,64 @@
 {% block content %}
 <a href="{{ url_for('web.dashboard') }}" class="text-sm text-blue-600">← Back to Dashboard</a>
 
-<div class="flex items-center gap-3 mt-4 mb-6">
+<div class="flex justify-between items-start mt-4 mb-6">
     <div>
         <h2 class="text-2xl font-bold">{{ merchant.name }}</h2>
         <p class="text-sm text-gray-500">{{ merchant.legal_form }} · {{ merchant.country }} · {{ merchant.email }}</p>
+        <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">{{ merchant.status }}</span>
     </div>
-    <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">{{ merchant.status }}</span>
+
+    <a href="{{ url_for('web.batch_upload_page', merchant_id=merchant.id) }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+        Batch Upload
+    </a>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <section class="bg-white border rounded-xl p-5">
-        <h3 class="font-semibold mb-4">Required Documents</h3>
+        <h3 class="font-semibold mb-4">Document Groups / Requirements</h3>
 
-        <div class="space-y-2 mb-5">
-            {% for doc in merchant.documents %}
-            <div class="flex justify-between items-center p-3 border rounded-lg">
-                <span>{{ doc.document_type }}</span>
+        <div class="overflow-hidden border rounded-xl">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-500 text-left">
+                    <tr>
+                        <th class="px-3 py-2">Type</th>
+                        <th class="px-3 py-2">Docs</th>
+                        <th class="px-3 py-2">Best ML</th>
+                        <th class="px-3 py-2">Status</th>
+                    </tr>
+                </thead>
 
-                {% if doc.status == "valid" %}
-                    <span class="text-green-600 text-sm font-medium">Valid</span>
-                {% elif doc.status == "review" %}
-                    <span class="text-yellow-600 text-sm font-medium">Review</span>
-                {% elif doc.status == "processing" %}
-                    <span class="text-blue-600 text-sm font-medium">Processing</span>
-                {% else %}
-                    <span class="text-red-600 text-sm font-medium">{{ doc.status|capitalize }}</span>
-                {% endif %}
-            </div>
-            {% endfor %}
+                <tbody>
+                    {% for requirement in merchant.requirements %}
+                    <tr class="border-t">
+                        <td class="px-3 py-2 font-medium">{{ requirement.label }}</td>
+                        <td class="px-3 py-2">{{ requirement.document_count }}</td>
+                        <td class="px-3 py-2">
+                            {% if requirement.best_ml_confidence %}
+                                {{ requirement.best_ml_confidence }}%
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="px-3 py-2">
+                            {% if requirement.status == "valid" %}
+                                <span class="text-green-600 font-medium">Valid</span>
+                            {% elif requirement.status == "review" %}
+                                <span class="text-yellow-600 font-medium">Review</span>
+                            {% else %}
+                                <span class="text-red-600 font-medium">Missing</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
-        <form action="{{ url_for('web.upload_document', merchant_id=merchant.id) }}" method="POST" enctype="multipart/form-data" class="border-t pt-4">
-            <label class="block text-sm font-medium mb-2">Upload Utility Bill / Invoice</label>
+        <form action="{{ url_for('web.upload_document', merchant_id=merchant.id) }}" method="POST" enctype="multipart/form-data" class="border-t pt-4 mt-5">
+            <label class="block text-sm font-medium mb-2">Single Document Upload</label>
             <input type="file" name="document" class="block w-full text-sm border rounded-lg p-2 mb-3" accept=".pdf,.png,.jpg,.jpeg,.txt" required>
-            <button class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Analyse Document</button>
+            <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800">Analyse Single Document</button>
         </form>
     </section>
 
@@ -46,7 +70,7 @@
             <h3 class="font-semibold">AI Agent</h3>
         </div>
 
-        <div class="space-y-3">
+        <div class="space-y-3 max-h-96 overflow-y-auto pr-2">
             {% for msg in merchant.agent_messages %}
             <div class="flex gap-3">
                 <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">AI</span>
@@ -60,9 +84,63 @@
     </section>
 </div>
 
+<div class="bg-white border rounded-xl p-5 mt-6">
+    <h3 class="font-semibold mb-4">Uploaded Documents</h3>
+
+    <div class="overflow-hidden border rounded-xl">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-left">
+                <tr>
+                    <th class="px-3 py-2">Filename</th>
+                    <th class="px-3 py-2">Group</th>
+                    <th class="px-3 py-2">ML Type</th>
+                    <th class="px-3 py-2">ML Confidence</th>
+                    <th class="px-3 py-2">Status</th>
+                    <th class="px-3 py-2">Uploaded</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for doc in merchant.documents %}
+                <tr class="border-t">
+                    <td class="px-3 py-2">{{ doc.original_filename }}</td>
+                    <td class="px-3 py-2">{{ doc.requirement_label or "-" }}</td>
+                    <td class="px-3 py-2">{{ doc.ml_document_type or "-" }}</td>
+                    <td class="px-3 py-2">
+                        {% if doc.ml_confidence %}
+                            {{ doc.ml_confidence }}%
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="px-3 py-2">
+                        {% if doc.status == "valid" %}
+                            <span class="text-green-600 font-medium">Valid</span>
+                        {% elif doc.status == "review" %}
+                            <span class="text-yellow-600 font-medium">Review</span>
+                        {% elif doc.status == "rejected" %}
+                            <span class="text-red-600 font-medium">Rejected</span>
+                        {% else %}
+                            {{ doc.status }}
+                        {% endif %}
+                    </td>
+                    <td class="px-3 py-2 text-gray-500">{{ doc.uploaded_at }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-3 py-6 text-center text-gray-500">
+                        No documents uploaded yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
 {% if merchant.last_invoice %}
 <div class="bg-white border rounded-xl p-5 mt-6">
-    <h3 class="font-semibold mb-4">Extracted Invoice Data</h3>
+    <h3 class="font-semibold mb-4">Last Extracted Document Data</h3>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
         <p><span class="text-gray-500">Document Type:</span> {{ merchant.last_invoice.document_type_detected }}</p>
@@ -85,7 +163,7 @@
 
 {% if merchant.last_validation %}
 <div class="bg-white border rounded-xl p-5 mt-6">
-    <h3 class="font-semibold mb-4">Validation Result: {{ merchant.last_validation.label }}</h3>
+    <h3 class="font-semibold mb-4">Last Validation Result: {{ merchant.last_validation.label }}</h3>
 
     <div class="space-y-2 text-sm">
         {% for check in merchant.last_validation.checks %}

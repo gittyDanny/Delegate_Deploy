@@ -29,14 +29,33 @@ def init_db() -> None:
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS document_requirements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                merchant_id INTEGER NOT NULL,
+                requirement_type TEXT NOT NULL,
+                label TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'missing',
+                required INTEGER NOT NULL DEFAULT 1,
+                created_by TEXT NOT NULL DEFAULT 'system',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (merchant_id, requirement_type),
+                FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
+            );
+
             CREATE TABLE IF NOT EXISTS documents (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 merchant_id INTEGER NOT NULL,
+                requirement_id INTEGER,
+                original_filename TEXT,
+                stored_filename TEXT,
                 document_type TEXT NOT NULL,
-                filename TEXT,
                 status TEXT NOT NULL,
-                uploaded_at TEXT,
-                FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
+                ml_document_type TEXT,
+                ml_confidence INTEGER,
+                uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE,
+                FOREIGN KEY (requirement_id) REFERENCES document_requirements(id) ON DELETE SET NULL
             );
 
             CREATE TABLE IF NOT EXISTS invoice_extractions (
