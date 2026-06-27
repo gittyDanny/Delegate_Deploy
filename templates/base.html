@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Delegat Proof of Concept</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'DM Sans', sans-serif; }
+        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.35} }
+        .ai-pulse { animation: pulse-dot 1.4s infinite; }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50 flex">
+    <aside class="w-64 bg-white border-r border-gray-200 min-h-screen p-5">
+        <h1 class="text-xl font-bold text-blue-600 mb-2">Delegat</h1>
+        <p class="text-xs text-gray-500 mb-8">Proof of Concept</p>
+
+        <nav class="space-y-2 text-sm">
+            <a href="{{ url_for('web.dashboard') }}" class="block px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium">Dashboard</a>
+            <div class="block px-3 py-2 rounded-lg text-gray-600">Merchants</div>
+            <div class="block px-3 py-2 rounded-lg text-gray-600">Documents</div>
+            <div class="block px-3 py-2 rounded-lg text-gray-600">AI Agent</div>
+            <div class="block px-3 py-2 rounded-lg text-gray-600">Audit Log</div>
+        </nav>
+    </aside>
+
+    <main class="flex-1 p-6">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

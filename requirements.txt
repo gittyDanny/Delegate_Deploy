@@ -1,0 +1,4 @@
+flask
+pymupdf
+python-dateutil
+docling
