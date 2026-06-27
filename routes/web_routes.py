@@ -6,6 +6,7 @@ from models.repositories import (
     add_audit_log,
     get_dashboard_data,
     get_merchant_detail,
+    get_requirement_case_detail,
     reset_demo_data,
 )
 from services.batch_processor import process_batch_upload
@@ -32,6 +33,23 @@ def merchant_detail(merchant_id: int):
         return "Merchant not found", 404
 
     return render_template("merchant_detail.html", merchant=merchant)
+
+
+@web_bp.route("/merchant/<int:merchant_id>/case/<int:requirement_id>")
+def requirement_case_detail(merchant_id: int, requirement_id: int):
+    case_data = get_requirement_case_detail(
+        merchant_id=merchant_id,
+        requirement_id=requirement_id,
+    )
+
+    if not case_data:
+        return "Case not found", 404
+
+    return render_template(
+        "case_detail.html",
+        merchant=case_data["merchant"],
+        requirement=case_data["requirement"],
+    )
 
 
 @web_bp.route("/merchant/<int:merchant_id>/batch")

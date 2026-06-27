@@ -1,3 +1,5 @@
+from sqlite3 import Connection
+
 from models.database import get_connection, row_to_dict
 from services.case_generator import build_missing_documents_message, get_requirement_label
 
@@ -151,75 +153,78 @@ def get_merchant_detail(merchant_id: int) -> dict | None:
             ).fetchone()
         )
 
-        if not merchant:
-            return None
+    if not merchant:
+        return None
 
-        merchant["requirements"] = get_requirements_for_merchant(merchant_id)
-        merchant["documents"] = get_documents_for_merchant(merchant_id)
+    merchant["requirements"] = get_requirements_for_merchant(merchant_id)
+    merchant["documents"] = get_documents_for_merchant(merchant_id)
+    merchant["agent_messages"] = get_agent_messages_for_merchant(merchant_id)
+    merchant["audit_log"] = get_audit_log_for_merchant(merchant_id)
+    merchant["last_invoice"] = get_last_invoice_for_merchant(merchant_id)
+    merchant["last_validation"] = None
 
-        merchant["agent_messages"] = [
-            dict(row)
-            for row in connection.execute(
-                """
-                SELECT *
-                FROM agent_messages
-                WHERE merchant_id = ?
-                ORDER BY id
-                """,
-                (merchant_id,),
-            ).fetchall()
-        ]
+    if merchant["last_invoice"]:
+        checks = get_validation_checks_for_extraction(merchant["last_invoice"]["id"])
 
-        merchant["audit_log"] = [
-            dict(row)
-            for row in connection.execute(
-                """
-                SELECT *
-                FROM audit_log
-                WHERE merchant_id = ?
-                ORDER BY id DESC
-                """,
-                (merchant_id,),
-            ).fetchall()
-        ]
+        merchant["last_validation"] = {
+            "status": infer_validation_status(checks),
+            "label": infer_validation_label(checks),
+            "checks": checks,
+        }
 
-        last_extraction = row_to_dict(
+    return merchant
+
+
+def get_requirement_case_detail(merchant_id: int, requirement_id: int) -> dict | None:
+    merchant = get_merchant_detail(merchant_id)
+
+    if not merchant:
+        return None
+
+    with get_connection() as connection:
+        requirement = row_to_dict(
             connection.execute(
                 """
                 SELECT *
-                FROM invoice_extractions
-                WHERE merchant_id = ?
-                ORDER BY id DESC
-                LIMIT 1
+                FROM document_requirements
+                WHERE id = ? AND merchant_id = ?
                 """,
-                (merchant_id,),
+                (requirement_id, merchant_id),
             ).fetchone()
         )
 
-        merchant["last_invoice"] = last_extraction
-        merchant["last_validation"] = None
+        if not requirement:
+            return None
 
-        if last_extraction:
-            checks = [
-                dict(row)
-                for row in connection.execute(
-                    """
-                    SELECT *
-                    FROM validation_checks
-                    WHERE extraction_id = ?
-                    ORDER BY id
-                    """,
-                    (last_extraction["id"],),
-                ).fetchall()
-            ]
+        documents = [
+            dict(row)
+            for row in connection.execute(
+                """
+                SELECT
+                    d.*,
+                    e.company_name,
+                    e.invoice_date,
+                    e.invoice_number,
+                    e.amount,
+                    e.provider,
+                    e.confidence AS extraction_confidence,
+                    e.raw_text_preview
+                FROM documents d
+                LEFT JOIN invoice_extractions e
+                    ON e.document_id = d.id
+                WHERE d.requirement_id = ?
+                ORDER BY d.uploaded_at DESC, d.id DESC
+                """,
+                (requirement_id,),
+            ).fetchall()
+        ]
 
-            merchant["last_validation"] = {
-                "status": infer_validation_status(checks),
-                "label": infer_validation_label(checks),
-                "checks": checks,
-            }
+    requirement["documents"] = documents
 
-    return merchant
+    return {
+        "merchant": merchant,
+        "requirement": requirement,
+    }
 
 
 def get_requirements_for_merchant(merchant_id: int) -> list[dict]:
@@ -265,6 +270,67 @@ def get_documents_for_merchant(merchant_id: int) -> list[dict]:
             ORDER BY d.uploaded_at DESC, d.id DESC
             """,
             (merchant_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def get_agent_messages_for_merchant(merchant_id: int) -> list[dict]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM agent_messages
+            WHERE merchant_id = ?
+            ORDER BY id
+            """,
+            (merchant_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def get_audit_log_for_merchant(merchant_id: int) -> list[dict]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM audit_log
+            WHERE merchant_id = ?
+            ORDER BY id DESC
+            """,
+            (merchant_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def get_last_invoice_for_merchant(merchant_id: int) -> dict | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT *
+            FROM invoice_extractions
+            WHERE merchant_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (merchant_id,),
+        ).fetchone()
+
+    return row_to_dict(row)
+
+
+def get_validation_checks_for_extraction(extraction_id: int) -> list[dict]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM validation_checks
+            WHERE extraction_id = ?
+            ORDER BY id
+            """,
+            (extraction_id,),
         ).fetchall()
 
     return [dict(row) for row in rows]
@@ -410,82 +476,86 @@ def save_extraction_and_validation(
             ],
         )
 
-        update_requirement_status(requirement_id)
-        update_merchant_status(merchant_id)
+        update_requirement_status_with_connection(connection, requirement_id)
+        update_merchant_status_with_connection(connection, merchant_id)
 
         return extraction_id
 
 
-def update_requirement_status(requirement_id: int) -> None:
-    with get_connection() as connection:
-        rows = connection.execute(
-            """
-            SELECT status
-            FROM documents
-            WHERE requirement_id = ?
-            """,
-            (requirement_id,),
-        ).fetchall()
+def update_requirement_status_with_connection(
+    connection: Connection,
+    requirement_id: int,
+) -> None:
+    rows = connection.execute(
+        """
+        SELECT status
+        FROM documents
+        WHERE requirement_id = ?
+        """,
+        (requirement_id,),
+    ).fetchall()
 
-        statuses = [row["status"] for row in rows]
+    statuses = [row["status"] for row in rows]
 
-        if not statuses:
-            new_status = "missing"
-        elif "valid" in statuses:
-            new_status = "valid"
-        elif "review" in statuses or "rejected" in statuses:
-            new_status = "review"
+    if not statuses:
+        new_status = "missing"
+    elif "valid" in statuses:
+        new_status = "valid"
+    elif "review" in statuses or "rejected" in statuses:
+        new_status = "review"
+    else:
+        new_status = "missing"
+
+    connection.execute(
+        """
+        UPDATE document_requirements
+        SET status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (new_status, requirement_id),
+    )
+
+
+def update_merchant_status_with_connection(
+    connection: Connection,
+    merchant_id: int,
+) -> None:
+    rows = connection.execute(
+        """
+        SELECT status
+        FROM document_requirements
+        WHERE merchant_id = ? AND required = 1
+        """,
+        (merchant_id,),
+    ).fetchall()
+
+    statuses = [row["status"] for row in rows]
+
+    if not statuses:
+        merchant_status = "Waiting for Documents"
+        progress = 0
+    else:
+        valid_count = statuses.count("valid")
+        review_count = statuses.count("review")
+        total_count = len(statuses)
+
+        progress = round(((valid_count + review_count * 0.5) / total_count) * 100)
+
+        if valid_count == total_count:
+            merchant_status = "Ready for Human Risk Review"
+        elif review_count > 0:
+            merchant_status = "Needs Review"
         else:
-            new_status = "missing"
-
-        connection.execute(
-            """
-            UPDATE document_requirements
-            SET status = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
-            (new_status, requirement_id),
-        )
-
-
-def update_merchant_status(merchant_id: int) -> None:
-    with get_connection() as connection:
-        rows = connection.execute(
-            """
-            SELECT status
-            FROM document_requirements
-            WHERE merchant_id = ? AND required = 1
-            """,
-            (merchant_id,),
-        ).fetchall()
-
-        statuses = [row["status"] for row in rows]
-
-        if not statuses:
             merchant_status = "Waiting for Documents"
-            progress = 0
-        else:
-            valid_count = statuses.count("valid")
-            review_count = statuses.count("review")
-            total_count = len(statuses)
 
-            progress = round(((valid_count + review_count * 0.5) / total_count) * 100)
-
-            if valid_count == total_count:
-                merchant_status = "Ready for Human Risk Review"
-            elif review_count > 0:
-                merchant_status = "Needs Review"
-            else:
-                merchant_status = "Waiting for Documents"
-
-        connection.execute(
-            """
-            UPDATE merchants
-            SET status = ?, progress = ?
-            WHERE id = ?
-            """,
-            (merchant_status, progress, merchant_id),
-        )
+    connection.execute(
+        """
+        UPDATE merchants
+        SET status = ?, progress = ?
+        WHERE id = ?
+        """,
+        (merchant_status, progress, merchant_id),
+    )
 
 
 def update_missing_document_request(merchant_id: int) -> None:
