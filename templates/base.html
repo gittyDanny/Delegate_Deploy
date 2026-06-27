@@ -11,17 +11,9 @@
         }
 
         @keyframes pulse {
-            0% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.35;
-            }
-
-            100% {
-                opacity: 1;
-            }
+            0% { opacity: 1; }
+            50% { opacity: 0.35; }
+            100% { opacity: 1; }
         }
     </style>
 </head>
@@ -44,17 +36,17 @@
                 </a>
 
                 {% if merchant is defined %}
-                    <a href="#documents"
+                    <a href="{{ url_for('web.merchant_detail', merchant_id=merchant.id) }}#documents"
                        class="block px-3 py-2 rounded-lg hover:bg-gray-800">
                         Documents
                     </a>
 
-                    <a href="#ai-agent"
+                    <a href="{{ url_for('web.merchant_detail', merchant_id=merchant.id) }}#ai-agent"
                        class="block px-3 py-2 rounded-lg hover:bg-gray-800">
                         AI Agent
                     </a>
 
-                    <a href="#audit-log"
+                    <a href="{{ url_for('web.audit_log', merchant_id=merchant.id) }}"
                        class="block px-3 py-2 rounded-lg hover:bg-gray-800">
                         Audit Log
                     </a>

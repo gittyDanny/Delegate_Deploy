@@ -33,10 +33,10 @@
                 <thead class="bg-gray-50 text-gray-500 text-left">
                     <tr>
                         <th class="px-3 py-2">Filename</th>
-                        <th class="px-3 py-2">ML Type</th>
-                        <th class="px-3 py-2">ML Confidence</th>
+                        <th class="px-3 py-2">Document Type</th>
+                        <th class="px-3 py-2">Confidence</th>
                         <th class="px-3 py-2">Status</th>
-                        <th class="px-3 py-2">Uploaded</th>
+                        <th class="px-3 py-2">Actions</th>
                     </tr>
                 </thead>
 
@@ -44,9 +44,11 @@
                     {% for doc in requirement.documents %}
                     <tr class="border-t">
                         <td class="px-3 py-2 font-medium">{{ doc.original_filename }}</td>
-                        <td class="px-3 py-2">{{ doc.ml_document_type or "-" }}</td>
+                        <td class="px-3 py-2">{{ doc.document_label or doc.ml_document_type or "-" }}</td>
                         <td class="px-3 py-2">
-                            {% if doc.ml_confidence %}
+                            {% if doc.classification_confidence %}
+                                {{ doc.classification_confidence }}%
+                            {% elif doc.ml_confidence %}
                                 {{ doc.ml_confidence }}%
                             {% else %}
                                 -
@@ -63,7 +65,16 @@
                                 {{ doc.status }}
                             {% endif %}
                         </td>
-                        <td class="px-3 py-2 text-gray-500">{{ doc.uploaded_at }}</td>
+                        <td class="px-3 py-2">
+                            <div class="flex gap-2">
+                                <a href="{{ url_for('web.document_detail', merchant_id=merchant.id, document_id=doc.id) }}" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
+                                    Details
+                                </a>
+                                <a href="{{ url_for('web.view_document_file', document_id=doc.id) }}" target="_blank" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
+                                    View PDF
+                                </a>
+                            </div>
+                        </td>
                     </tr>
                     {% else %}
                     <tr>
@@ -104,44 +115,19 @@
             <div class="flex justify-between gap-4 mb-3">
                 <h4 class="font-semibold">{{ doc.original_filename }}</h4>
 
-                {% if doc.status == "valid" %}
-                    <span class="text-green-600 text-sm font-medium">Valid</span>
-                {% elif doc.status == "review" %}
-                    <span class="text-yellow-600 text-sm font-medium">Review</span>
-                {% elif doc.status == "rejected" %}
-                    <span class="text-red-600 text-sm font-medium">Rejected</span>
-                {% else %}
-                    <span class="text-gray-500 text-sm">{{ doc.status }}</span>
-                {% endif %}
+                <a href="{{ url_for('web.document_detail', merchant_id=merchant.id, document_id=doc.id) }}" class="text-sm text-blue-600">
+                    Open Details
+                </a>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                <p><span class="text-gray-500">Company:</span> {{ doc.company_name or "not detected" }}</p>
-                <p><span class="text-gray-500">Invoice Date:</span> {{ doc.invoice_date or "not detected" }}</p>
-                <p><span class="text-gray-500">Invoice Number:</span> {{ doc.invoice_number or "not detected" }}</p>
-                <p><span class="text-gray-500">Amount:</span> {{ doc.amount or "not detected" }}</p>
-                <p><span class="text-gray-500">Provider:</span> {{ doc.provider or "not detected" }}</p>
-                <p><span class="text-gray-500">Extraction Confidence:</span> {{ doc.extraction_confidence or 0 }}%</p>
+                {% for field, value in doc.extracted_fields.items() %}
+                    <p><span class="text-gray-500">{{ field }}:</span> {{ value or "not detected" }}</p>
+                {% endfor %}
             </div>
         </div>
         {% endfor %}
     </div>
 </div>
 {% endif %}
-
-<div id="audit-log" class="bg-white border rounded-xl p-5 mt-6">
-    <h3 class="font-semibold mb-4">Audit Log</h3>
-
-    <div class="space-y-2 text-sm">
-        {% for entry in merchant.audit_log %}
-        <div class="p-3 border rounded-lg bg-gray-50">
-            <div class="flex justify-between">
-                <span class="font-medium">{{ entry.actor }} · {{ entry.event_type }}</span>
-                <span class="text-xs text-gray-400">{{ entry.created_at }}</span>
-            </div>
-            <p class="text-gray-700 mt-1">{{ entry.message }}</p>
-        </div>
-        {% endfor %}
-    </div>
-</div>
 {% endblock %}

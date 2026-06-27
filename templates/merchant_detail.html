@@ -10,9 +10,15 @@
         <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">{{ merchant.status }}</span>
     </div>
 
-    <a href="{{ url_for('web.batch_upload_page', merchant_id=merchant.id) }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-        Batch Upload
-    </a>
+    <div class="flex gap-2">
+        <a href="{{ url_for('web.audit_log', merchant_id=merchant.id) }}" class="px-4 py-2 bg-white border rounded-lg text-sm hover:bg-gray-50">
+            Audit Log
+        </a>
+
+        <a href="{{ url_for('web.batch_upload_page', merchant_id=merchant.id) }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
+            Batch Upload
+        </a>
+    </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -25,7 +31,7 @@
                     <tr>
                         <th class="px-3 py-2">Case</th>
                         <th class="px-3 py-2">Docs</th>
-                        <th class="px-3 py-2">Best ML</th>
+                        <th class="px-3 py-2">Best Confidence</th>
                         <th class="px-3 py-2">Status</th>
                         <th class="px-3 py-2"></th>
                     </tr>
@@ -39,9 +45,7 @@
                                 {{ requirement.label }}
                             </a>
                         </td>
-
                         <td class="px-3 py-2">{{ requirement.document_count }}</td>
-
                         <td class="px-3 py-2">
                             {% if requirement.best_ml_confidence %}
                                 {{ requirement.best_ml_confidence }}%
@@ -49,7 +53,6 @@
                                 -
                             {% endif %}
                         </td>
-
                         <td class="px-3 py-2">
                             {% if requirement.status == "valid" %}
                                 <span class="text-green-600 font-medium">Valid</span>
@@ -59,7 +62,6 @@
                                 <span class="text-red-600 font-medium">Missing</span>
                             {% endif %}
                         </td>
-
                         <td class="px-3 py-2 text-right">
                             <a href="{{ url_for('web.requirement_case_detail', merchant_id=merchant.id, requirement_id=requirement.id) }}" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
                                 Open
@@ -107,10 +109,10 @@
                 <tr>
                     <th class="px-3 py-2">Filename</th>
                     <th class="px-3 py-2">Group</th>
-                    <th class="px-3 py-2">ML Type</th>
-                    <th class="px-3 py-2">ML Confidence</th>
+                    <th class="px-3 py-2">Document Type</th>
+                    <th class="px-3 py-2">Confidence</th>
                     <th class="px-3 py-2">Status</th>
-                    <th class="px-3 py-2">Uploaded</th>
+                    <th class="px-3 py-2">Actions</th>
                 </tr>
             </thead>
 
@@ -146,7 +148,16 @@
                             {{ doc.status }}
                         {% endif %}
                     </td>
-                    <td class="px-3 py-2 text-gray-500">{{ doc.uploaded_at }}</td>
+                    <td class="px-3 py-2">
+                        <div class="flex gap-2">
+                            <a href="{{ url_for('web.document_detail', merchant_id=merchant.id, document_id=doc.id) }}" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
+                                Details
+                            </a>
+                            <a href="{{ url_for('web.view_document_file', document_id=doc.id) }}" target="_blank" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
+                                View PDF
+                            </a>
+                        </div>
+                    </td>
                 </tr>
                 {% else %}
                 <tr>
@@ -160,37 +171,22 @@
     </div>
 </div>
 
-{% if merchant.last_invoice %}
+{% if merchant.last_document %}
 <div class="bg-white border rounded-xl p-5 mt-6">
     <h3 class="font-semibold mb-4">Last Extracted Document Data</h3>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-        <p><span class="text-gray-500">Document Type:</span> {{ merchant.last_invoice.document_type_detected }}</p>
-        <p><span class="text-gray-500">ML Type:</span> {{ merchant.last_invoice.ml_document_type or "not detected" }}</p>
-        <p><span class="text-gray-500">ML Confidence:</span> {{ merchant.last_invoice.ml_confidence or 0 }}%</p>
-        <p><span class="text-gray-500">Company:</span> {{ merchant.last_invoice.company_name or "not detected" }}</p>
-        <p><span class="text-gray-500">Invoice Date:</span> {{ merchant.last_invoice.invoice_date or "not detected" }}</p>
-        <p><span class="text-gray-500">Invoice Number:</span> {{ merchant.last_invoice.invoice_number or "not detected" }}</p>
-        <p><span class="text-gray-500">Amount:</span> {{ merchant.last_invoice.amount or "not detected" }}</p>
-        <p><span class="text-gray-500">Provider:</span> {{ merchant.last_invoice.provider or "not detected" }}</p>
-        <p><span class="text-gray-500">Overall Confidence:</span> {{ merchant.last_invoice.confidence }}%</p>
+        <p><span class="text-gray-500">File:</span> {{ merchant.last_document.original_filename }}</p>
+        <p><span class="text-gray-500">Document Type:</span> {{ merchant.last_document.document_label }}</p>
+        <p><span class="text-gray-500">Classification Confidence:</span> {{ merchant.last_document.classification_confidence or 0 }}%</p>
+        <p><span class="text-gray-500">Validation:</span> {{ merchant.last_document.validation_label or "-" }}</p>
     </div>
-</div>
-{% endif %}
 
-<div id="audit-log" class="bg-white border rounded-xl p-5 mt-6">
-    <h3 class="font-semibold mb-4">Audit Log</h3>
-
-    <div class="space-y-2 text-sm">
-        {% for entry in merchant.audit_log %}
-        <div class="p-3 border rounded-lg bg-gray-50">
-            <div class="flex justify-between">
-                <span class="font-medium">{{ entry.actor }} · {{ entry.event_type }}</span>
-                <span class="text-xs text-gray-400">{{ entry.created_at }}</span>
-            </div>
-            <p class="text-gray-700 mt-1">{{ entry.message }}</p>
-        </div>
+    <div class="mt-4 border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+        {% for field, value in merchant.last_document.extracted_fields.items() %}
+            <p><span class="text-gray-500">{{ field }}:</span> {{ value or "not detected" }}</p>
         {% endfor %}
     </div>
 </div>
+{% endif %}
 {% endblock %}

@@ -19,8 +19,8 @@ from services.case_generator import (
     map_ml_type_to_requirement_type,
     map_validation_to_document_status,
 )
+from services.document_extractor import extract_document_data
 from services.document_reader import read_document
-from services.invoice_extractor import extract_invoice_data
 
 
 def process_batch_upload(
@@ -111,10 +111,10 @@ def process_single_file(
             f"Extracted text from document: {original_filename}",
         )
 
-        invoice = extract_invoice_data(raw_text)
+        extraction = extract_document_data(raw_text)
 
         requirement_type = map_ml_type_to_requirement_type(
-            invoice.get("ml_document_type")
+            extraction.get("document_type")
         )
         requirement_label = get_requirement_label(requirement_type)
 
@@ -126,7 +126,7 @@ def process_single_file(
         )
 
         validation = build_validation_for_document(
-            invoice=invoice,
+            extraction=extraction,
             expected_company=merchant["name"],
         )
 
@@ -139,8 +139,8 @@ def process_single_file(
             stored_filename=stored_filename,
             document_type=requirement_label,
             status=document_status,
-            ml_document_type=invoice.get("ml_document_type"),
-            ml_confidence=invoice.get("ml_confidence"),
+            ml_document_type=extraction.get("document_type"),
+            ml_confidence=extraction.get("classification_confidence"),
         )
 
         save_extraction_and_validation(
@@ -148,7 +148,7 @@ def process_single_file(
             document_id=document_id,
             requirement_id=requirement_id,
             raw_text=raw_text,
-            invoice=invoice,
+            extraction=extraction,
             validation=validation,
         )
 
@@ -167,8 +167,8 @@ def process_single_file(
             "document_grouped",
             (
                 f"Document '{original_filename}' was classified as "
-                f"'{requirement_type}' with ML confidence "
-                f"{invoice.get('ml_confidence')}%."
+                f"'{requirement_type}' with classification confidence "
+                f"{extraction.get('classification_confidence')}%."
             ),
         )
 
@@ -177,7 +177,7 @@ def process_single_file(
             "status": document_status,
             "requirement_type": requirement_type,
             "requirement_label": requirement_label,
-            "ml_confidence": invoice.get("ml_confidence"),
+            "classification_confidence": extraction.get("classification_confidence"),
             "validation_label": validation["label"],
         }
 

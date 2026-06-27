@@ -1,10 +1,13 @@
-from flask import Blueprint, current_app, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, redirect, render_template, request, send_from_directory, url_for
 
 from config import ALLOWED_EXTENSIONS
 from models.repositories import (
     add_agent_message,
     add_audit_log,
+    get_audit_page_data,
     get_dashboard_data,
+    get_document_detail,
+    get_document_file,
     get_merchant_detail,
     get_requirement_case_detail,
     reset_demo_data,
@@ -50,6 +53,48 @@ def requirement_case_detail(merchant_id: int, requirement_id: int):
         merchant=case_data["merchant"],
         requirement=case_data["requirement"],
     )
+
+
+@web_bp.route("/merchant/<int:merchant_id>/document/<int:document_id>")
+def document_detail(merchant_id: int, document_id: int):
+    detail = get_document_detail(
+        merchant_id=merchant_id,
+        document_id=document_id,
+    )
+
+    if not detail:
+        return "Document not found", 404
+
+    return render_template(
+        "document_detail.html",
+        merchant=detail["merchant"],
+        document=detail["document"],
+    )
+
+
+@web_bp.route("/document/<int:document_id>/view")
+def view_document_file(document_id: int):
+    document = get_document_file(document_id)
+
+    if not document:
+        return "Document not found", 404
+
+    return send_from_directory(
+        current_app.config["UPLOAD_FOLDER"],
+        document["stored_filename"],
+        as_attachment=False,
+        download_name=document["original_filename"],
+    )
+
+
+@web_bp.route("/merchant/<int:merchant_id>/audit")
+def audit_log(merchant_id: int):
+    merchant = get_audit_page_data(merchant_id)
+
+    if not merchant:
+        return "Merchant not found", 404
+
+    return render_template("audit_log.html", merchant=merchant)
 
 
 @web_bp.route("/merchant/<int:merchant_id>/batch")

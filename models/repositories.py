@@ -1,3 +1,4 @@
+import json
 from sqlite3 import Connection
 
 from models.database import get_connection, row_to_dict
@@ -97,7 +98,7 @@ def seed_demo_data() -> None:
 def reset_demo_data() -> None:
     with get_connection() as connection:
         connection.execute("DELETE FROM validation_checks")
-        connection.execute("DELETE FROM invoice_extractions")
+        connection.execute("DELETE FROM document_extractions")
         connection.execute("DELETE FROM documents")
         connection.execute("DELETE FROM document_requirements")
         connection.execute("DELETE FROM agent_messages")
@@ -159,12 +160,11 @@ def get_merchant_detail(merchant_id: int) -> dict | None:
     merchant["requirements"] = get_requirements_for_merchant(merchant_id)
     merchant["documents"] = get_documents_for_merchant(merchant_id)
     merchant["agent_messages"] = get_agent_messages_for_merchant(merchant_id)
-    merchant["audit_log"] = get_audit_log_for_merchant(merchant_id)
-    merchant["last_invoice"] = get_last_invoice_for_merchant(merchant_id)
+    merchant["last_document"] = get_last_document_extraction_for_merchant(merchant_id)
     merchant["last_validation"] = None
 
-    if merchant["last_invoice"]:
-        checks = get_validation_checks_for_extraction(merchant["last_invoice"]["id"])
+    if merchant["last_document"]:
+        checks = get_validation_checks_for_extraction(merchant["last_document"]["extraction_id"])
 
         merchant["last_validation"] = {
             "status": infer_validation_status(checks),
@@ -197,20 +197,20 @@ def get_requirement_case_detail(merchant_id: int, requirement_id: int) -> dict |
             return None
 
         documents = [
-            dict(row)
+            parse_extracted_fields(dict(row))
             for row in connection.execute(
                 """
                 SELECT
                     d.*,
-                    e.company_name,
-                    e.invoice_date,
-                    e.invoice_number,
-                    e.amount,
-                    e.provider,
-                    e.confidence AS extraction_confidence,
+                    e.id AS extraction_id,
+                    e.document_type_detected,
+                    e.document_label,
+                    e.classification_confidence,
+                    e.extracted_fields_json,
+                    e.validation_label,
                     e.raw_text_preview
                 FROM documents d
-                LEFT JOIN invoice_extractions e
+                LEFT JOIN document_extractions e
                     ON e.document_id = d.id
                 WHERE d.requirement_id = ?
                 ORDER BY d.uploaded_at DESC, d.id DESC
@@ -225,6 +225,89 @@ def get_requirement_case_detail(merchant_id: int, requirement_id: int) -> dict |
         "merchant": merchant,
         "requirement": requirement,
     }
+
+
+def get_audit_page_data(merchant_id: int) -> dict | None:
+    merchant = get_merchant_detail(merchant_id)
+
+    if not merchant:
+        return None
+
+    merchant["audit_log"] = get_audit_log_for_merchant(merchant_id)
+
+    return merchant
+
+
+def get_document_detail(merchant_id: int, document_id: int) -> dict | None:
+    with get_connection() as connection:
+        document = row_to_dict(
+            connection.execute(
+                """
+                SELECT
+                    d.*,
+                    r.label AS requirement_label,
+                    r.requirement_type,
+                    e.id AS extraction_id,
+                    e.document_type_detected,
+                    e.document_label,
+                    e.classification_confidence,
+                    e.extracted_fields_json,
+                    e.validation_label,
+                    e.raw_text_preview
+                FROM documents d
+                LEFT JOIN document_requirements r
+                    ON r.id = d.requirement_id
+                LEFT JOIN document_extractions e
+                    ON e.document_id = d.id
+                WHERE d.id = ? AND d.merchant_id = ?
+                """,
+                (document_id, merchant_id),
+            ).fetchone()
+        )
+
+        if not document:
+            return None
+
+        checks = []
+        if document.get("extraction_id"):
+            checks = [
+                dict(row)
+                for row in connection.execute(
+                    """
+                    SELECT *
+                    FROM validation_checks
+                    WHERE extraction_id = ?
+                    ORDER BY id
+                    """,
+                    (document["extraction_id"],),
+                ).fetchall()
+            ]
+
+    document = parse_extracted_fields(document)
+    document["validation_checks"] = checks
+
+    merchant = get_merchant_detail(merchant_id)
+
+    return {
+        "merchant": merchant,
+        "document": document,
+    }
+
+
+def get_document_file(document_id: int) -> dict | None:
+    with get_connection() as connection:
+        document = row_to_dict(
+            connection.execute(
+                """
+                SELECT id, original_filename, stored_filename
+                FROM documents
+                WHERE id = ?
+                """,
+                (document_id,),
+            ).fetchone()
+        )
+
+    return document
 
 
 def get_requirements_for_merchant(merchant_id: int) -> list[dict]:
@@ -305,20 +388,28 @@ def get_audit_log_for_merchant(merchant_id: int) -> list[dict]:
     return [dict(row) for row in rows]
 
 
-def get_last_invoice_for_merchant(merchant_id: int) -> dict | None:
+def get_last_document_extraction_for_merchant(merchant_id: int) -> dict | None:
     with get_connection() as connection:
         row = connection.execute(
             """
-            SELECT *
-            FROM invoice_extractions
-            WHERE merchant_id = ?
-            ORDER BY id DESC
+            SELECT
+                e.id AS extraction_id,
+                e.*,
+                d.original_filename
+            FROM document_extractions e
+            JOIN documents d
+                ON d.id = e.document_id
+            WHERE e.merchant_id = ?
+            ORDER BY e.id DESC
             LIMIT 1
             """,
             (merchant_id,),
         ).fetchone()
 
-    return row_to_dict(row)
+    if not row:
+        return None
+
+    return parse_extracted_fields(dict(row))
 
 
 def get_validation_checks_for_extraction(extraction_id: int) -> list[dict]:
@@ -416,43 +507,35 @@ def save_extraction_and_validation(
     document_id: int,
     requirement_id: int,
     raw_text: str,
-    invoice: dict,
+    extraction: dict,
     validation: dict,
 ) -> int:
     with get_connection() as connection:
         cursor = connection.execute(
             """
-            INSERT INTO invoice_extractions
+            INSERT INTO document_extractions
                 (
                     merchant_id,
                     document_id,
                     raw_text_preview,
                     document_type_detected,
-                    ml_document_type,
-                    ml_confidence,
-                    company_name,
-                    invoice_date,
-                    invoice_number,
-                    amount,
-                    provider,
-                    confidence
+                    document_label,
+                    classification_confidence,
+                    extracted_fields_json,
+                    validation_label
                 )
             VALUES
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 merchant_id,
                 document_id,
                 raw_text[:1200],
-                invoice.get("document_type"),
-                invoice.get("ml_document_type"),
-                invoice.get("ml_confidence"),
-                invoice.get("company_name"),
-                invoice.get("invoice_date"),
-                invoice.get("invoice_number"),
-                invoice.get("amount"),
-                invoice.get("provider"),
-                invoice.get("confidence"),
+                extraction.get("document_type"),
+                extraction.get("document_label"),
+                extraction.get("classification_confidence"),
+                json.dumps(extraction.get("extracted_fields", {}), ensure_ascii=False),
+                validation.get("label"),
             ),
         )
 
@@ -612,6 +695,20 @@ def add_audit_log(
             """,
             (merchant_id, actor, event_type, message),
         )
+
+
+def parse_extracted_fields(row: dict) -> dict:
+    raw_json = row.get("extracted_fields_json")
+
+    if raw_json:
+        try:
+            row["extracted_fields"] = json.loads(raw_json)
+        except json.JSONDecodeError:
+            row["extracted_fields"] = {}
+    else:
+        row["extracted_fields"] = {}
+
+    return row
 
 
 def infer_validation_status(checks: list[dict]) -> str:
