@@ -1,13 +1,19 @@
+from uuid import uuid4
+
 from flask import Blueprint, current_app, redirect, render_template, request, url_for
 from werkzeug.utils import secure_filename
 
 from config import ALLOWED_EXTENSIONS
-from models.demo_store import get_all_merchants, get_merchant_by_id, reset_demo_data
-from services.agent_service import (
-    add_audit_entries,
-    build_agent_comment,
-    update_merchant_after_validation,
+from models.repositories import (
+    add_agent_message,
+    add_audit_log,
+    create_or_update_uploaded_document,
+    get_dashboard_data,
+    get_merchant_detail,
+    reset_demo_data,
+    save_extraction_and_validation,
 )
+from services.agent_service import build_agent_comment
 from services.document_reader import read_document
 from services.invoice_extractor import extract_invoice_data
 from services.kyc_validator import validate_invoice
@@ -17,24 +23,18 @@ web_bp = Blueprint("web", __name__)
 
 @web_bp.route("/")
 def dashboard():
-    merchants = get_all_merchants()
+    data = get_dashboard_data()
 
-    stats = {
-        "active": len(merchants),
-        "waiting": sum(1 for merchant in merchants if "Waiting" in merchant["status"]),
-        "review": sum(
-            1 for merchant in merchants
-            if "Review" in merchant["status"] or "Human" in merchant["status"]
-        ),
-        "completed": sum(1 for merchant in merchants if "Ready" in merchant["status"]),
-    }
-
-    return render_template("dashboard.html", merchants=merchants, stats=stats)
+    return render_template(
+        "dashboard.html",
+        merchants=data["merchants"],
+        stats=data["stats"],
+    )
 
 
 @web_bp.route("/merchant/<int:merchant_id>")
 def merchant_detail(merchant_id: int):
-    merchant = get_merchant_by_id(merchant_id)
+    merchant = get_merchant_detail(merchant_id)
 
     if not merchant:
         return "Merchant not found", 404
@@ -44,7 +44,7 @@ def merchant_detail(merchant_id: int):
 
 @web_bp.route("/merchant/<int:merchant_id>/upload", methods=["POST"])
 def upload_document(merchant_id: int):
-    merchant = get_merchant_by_id(merchant_id)
+    merchant = get_merchant_detail(merchant_id)
 
     if not merchant:
         return "Merchant not found", 404
@@ -52,38 +52,96 @@ def upload_document(merchant_id: int):
     uploaded_file = request.files.get("document")
 
     if not uploaded_file or uploaded_file.filename == "":
-        merchant["agent_messages"].append("No document was uploaded.")
-        return redirect(url_for("web.merchant_detail", merchant_id=merchant_id))
-
-    if not allowed_file(uploaded_file.filename):
-        merchant["agent_messages"].append(
-            "Unsupported file type. Please upload PDF, PNG, JPG, JPEG or TXT."
+        add_agent_message(merchant_id, "No document was uploaded.")
+        add_audit_log(
+            merchant_id,
+            "System",
+            "upload_failed",
+            "Upload failed: no file selected.",
         )
         return redirect(url_for("web.merchant_detail", merchant_id=merchant_id))
 
-    filename = secure_filename(uploaded_file.filename)
-    file_path = current_app.config["UPLOAD_FOLDER"] / filename
+    if not allowed_file(uploaded_file.filename):
+        add_agent_message(
+            merchant_id,
+            "Unsupported file type. Please upload PDF, PNG, JPG, JPEG or TXT.",
+        )
+        add_audit_log(
+            merchant_id,
+            "System",
+            "upload_failed",
+            f"Unsupported file type: {uploaded_file.filename}",
+        )
+        return redirect(url_for("web.merchant_detail", merchant_id=merchant_id))
+
+    original_filename = secure_filename(uploaded_file.filename)
+    stored_filename = f"{uuid4().hex}_{original_filename}"
+    file_path = current_app.config["UPLOAD_FOLDER"] / stored_filename
+
     uploaded_file.save(file_path)
+
+    document_id = create_or_update_uploaded_document(
+        merchant_id=merchant_id,
+        document_type="Utility Bill",
+        filename=stored_filename,
+    )
+
+    add_audit_log(
+        merchant_id,
+        "Merchant",
+        "document_uploaded",
+        f"Uploaded document: {original_filename}",
+    )
 
     try:
         raw_text = read_document(str(file_path))
+
+        add_audit_log(
+            merchant_id,
+            "AI",
+            "document_read",
+            "Document text was extracted successfully.",
+        )
+
         invoice = extract_invoice_data(raw_text)
+
+        add_audit_log(
+            merchant_id,
+            "AI",
+            "invoice_extracted",
+            "Invoice fields were extracted from the document.",
+        )
+
         validation = validate_invoice(invoice, expected_company=merchant["name"])
 
-        merchant["last_invoice"] = invoice
-        merchant["last_validation"] = validation
-        merchant["last_raw_text_preview"] = raw_text[:1200]
+        save_extraction_and_validation(
+            merchant_id=merchant_id,
+            document_id=document_id,
+            raw_text=raw_text,
+            invoice=invoice,
+            validation=validation,
+        )
 
-        update_merchant_after_validation(merchant, validation)
-        add_audit_entries(merchant, filename, validation)
+        add_agent_message(merchant_id, build_agent_comment(validation))
 
-        merchant["agent_messages"].append(build_agent_comment(validation))
+        add_audit_log(
+            merchant_id,
+            "AI",
+            "validation_completed",
+            f"Validation completed: {validation['label']}",
+        )
 
     except Exception as exc:
-        merchant["status"] = "Human Review Required"
-        merchant["audit_log"].insert(0, f"Document analysis failed: {filename}")
-        merchant["agent_messages"].append(
-            f"The document could not be processed automatically: {exc}"
+        add_agent_message(
+            merchant_id,
+            f"The document could not be processed automatically: {exc}",
+        )
+
+        add_audit_log(
+            merchant_id,
+            "System",
+            "processing_error",
+            f"Document processing failed: {exc}",
         )
 
     return redirect(url_for("web.merchant_detail", merchant_id=merchant_id))

@@ -18,11 +18,14 @@
         <div class="space-y-2 mb-5">
             {% for doc in merchant.documents %}
             <div class="flex justify-between items-center p-3 border rounded-lg">
-                <span>{{ doc.name }}</span>
+                <span>{{ doc.document_type }}</span>
+
                 {% if doc.status == "valid" %}
                     <span class="text-green-600 text-sm font-medium">Valid</span>
                 {% elif doc.status == "review" %}
                     <span class="text-yellow-600 text-sm font-medium">Review</span>
+                {% elif doc.status == "processing" %}
+                    <span class="text-blue-600 text-sm font-medium">Processing</span>
                 {% else %}
                     <span class="text-red-600 text-sm font-medium">{{ doc.status|capitalize }}</span>
                 {% endif %}
@@ -47,7 +50,10 @@
             {% for msg in merchant.agent_messages %}
             <div class="flex gap-3">
                 <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">AI</span>
-                <div class="bg-gray-100 rounded-lg px-3 py-2 text-sm">{{ msg }}</div>
+                <div>
+                    <div class="bg-gray-100 rounded-lg px-3 py-2 text-sm">{{ msg.message }}</div>
+                    <p class="text-xs text-gray-400 mt-1">{{ msg.created_at }}</p>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -59,7 +65,7 @@
     <h3 class="font-semibold mb-4">Extracted Invoice Data</h3>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-        <p><span class="text-gray-500">Document Type:</span> {{ merchant.last_invoice.document_type }}</p>
+        <p><span class="text-gray-500">Document Type:</span> {{ merchant.last_invoice.document_type_detected }}</p>
         <p><span class="text-gray-500">Company:</span> {{ merchant.last_invoice.company_name or "not detected" }}</p>
         <p><span class="text-gray-500">Invoice Date:</span> {{ merchant.last_invoice.invoice_date or "not detected" }}</p>
         <p><span class="text-gray-500">Invoice Number:</span> {{ merchant.last_invoice.invoice_number or "not detected" }}</p>
@@ -67,6 +73,11 @@
         <p><span class="text-gray-500">Provider:</span> {{ merchant.last_invoice.provider or "not detected" }}</p>
         <p><span class="text-gray-500">Confidence:</span> {{ merchant.last_invoice.confidence }}%</p>
     </div>
+</div>
+
+<div class="bg-white border rounded-xl p-5 mt-6">
+    <h3 class="font-semibold mb-4">Raw Text Preview</h3>
+    <pre class="text-xs bg-gray-900 text-gray-100 p-4 rounded-xl overflow-x-auto whitespace-pre-wrap">{{ merchant.last_invoice.raw_text_preview }}</pre>
 </div>
 {% endif %}
 
@@ -88,19 +99,18 @@
 </div>
 {% endif %}
 
-{% if merchant.last_raw_text_preview %}
-<div class="bg-white border rounded-xl p-5 mt-6">
-    <h3 class="font-semibold mb-4">Raw Text Preview</h3>
-    <pre class="text-xs bg-gray-900 text-gray-100 p-4 rounded-xl overflow-x-auto whitespace-pre-wrap">{{ merchant.last_raw_text_preview }}</pre>
-</div>
-{% endif %}
-
 <div class="bg-white border rounded-xl p-5 mt-6">
     <h3 class="font-semibold mb-4">Audit Log</h3>
 
     <div class="space-y-2 text-sm">
         {% for entry in merchant.audit_log %}
-        <div class="p-2 border rounded-lg bg-gray-50">{{ entry }}</div>
+        <div class="p-3 border rounded-lg bg-gray-50">
+            <div class="flex justify-between">
+                <span class="font-medium">{{ entry.actor }} · {{ entry.event_type }}</span>
+                <span class="text-xs text-gray-400">{{ entry.created_at }}</span>
+            </div>
+            <p class="text-gray-700 mt-1">{{ entry.message }}</p>
+        </div>
         {% endfor %}
     </div>
 </div>
