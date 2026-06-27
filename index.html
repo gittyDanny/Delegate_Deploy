@@ -3,355 +3,528 @@
  <head><script src="/_sdk/telemetry_sdk.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DELEGAT Prototyp</title>
+  <title>Delegat</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <style>
-        body { font-family: 'DM Sans', sans-serif; }
-        .tab-active { border-bottom: 2px solid #0EA5E9; color: #0EA5E9; }
-        .email-selected { border-left: 3px solid #0EA5E9; background: #f0f9ff; }
-        .step-done { color: #10B981; }
-        .step-active { color: #0EA5E9; font-weight: 600; }
-        .fade-in { animation: fadeIn 0.4s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        * { font-family: 'DM Sans', sans-serif; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .nav-item.active { background: #EFF6FF; color: #2563EB; }
+        .tab-btn.active { border-color: #2563EB; color: #2563EB; }
+        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .ai-pulse { animation: pulse-dot 1.5s infinite; }
     </style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
-  <script src="/_sdk/editing_sdk.js" type="text/javascript"></script>
   <script src="/_sdk/resizing_sdk.js" type="text/javascript"></script>
  </head>
- <body data-template-id="__page-root" class="min-h-screen">
-  <header data-template-id="header-bg" class="canva-header bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-   <div class="flex items-center gap-3">
-    <div class="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white font-bold text-sm">
-     D
-    </div>
-    <h1 data-template-id="app-title" class="canva-text font-bold text-lg"></h1><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full flex items-center gap-1"> <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block"></span> Agent aktiv </span>
-   </div><span data-template-id="kanzlei-name" class="canva-text text-sm text-gray-500"></span>
-  </header>
-  <nav class="bg-white border-b border-gray-100 px-6">
-   <div class="flex gap-6">
-    <button id="tab-cockpit" class="py-3 text-sm font-medium tab-active" onclick="switchTab('cockpit')">Cockpit</button> <button id="tab-anon" class="py-3 text-sm font-medium text-gray-500 hover:text-gray-700" onclick="switchTab('anon')">Anonymisierung</button> <button id="tab-roadmap" class="py-3 text-sm font-medium text-gray-500 hover:text-gray-700" onclick="switchTab('roadmap')">Roadmap</button>
+ <body data-template-id="__page-root" class="min-h-screen flex"><!-- Sidebar -->
+  <aside class="w-60 border-r border-gray-200 flex flex-col bg-white shrink-0" style="min-height:calc(100 * min(var(--vh,1vh),1vh))">
+   <div class="p-5 border-b border-gray-200">
+    <h1 data-template-id="app-logo" class="canva-text text-xl font-bold text-blue-600"></h1>
    </div>
-  </nav><!-- COCKPIT -->
-  <main id="view-cockpit" class="p-6 max-w-7xl mx-auto">
-   <!-- Stats -->
-   <div class="grid grid-cols-4 gap-4 mb-6">
-    <div class="bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
-     <p class="text-xs text-gray-500 mb-1">In Warteschlange</p>
-     <p id="stat-queue" class="text-2xl font-bold text-slate-900">3</p>
-    </div>
-    <div class="bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
-     <p class="text-xs text-gray-500 mb-1">Heute erledigt</p>
-     <p id="stat-done" class="text-2xl font-bold text-slate-900">0</p>
-    </div>
-    <div class="bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
-     <p class="text-xs text-gray-500 mb-1">Min. gespart</p>
-     <p id="stat-saved" class="text-2xl font-bold text-slate-900">0</p>
-    </div>
-    <div class="bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
-     <p class="text-xs text-gray-500 mb-1">DSGVO-Events</p>
-     <p id="stat-gdpr" class="text-2xl font-bold text-slate-900">0</p>
-    </div>
-   </div>
-   <div class="grid grid-cols-12 gap-6">
-    <!-- Email Queue -->
-    <div class="col-span-3">
-     <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">E-Mail-Warteschlange</h2>
-     <div id="email-list" class="space-y-2">
-      <button onclick="selectEmail(0)" id="email-0" class="email-selected w-full text-left p-3 bg-white rounded-lg border border-gray-100 shadow-sm"> <p class="font-semibold text-sm text-slate-900">Büromaterial GmbH</p>
-       <div class="flex items-center gap-2 mt-1">
-        <span class="text-xs px-1.5 py-0.5 bg-sky-100 text-sky-700 rounded">Eingangsrechnung</span> <span class="text-xs text-gray-400">284,50€</span>
-       </div><p class="text-xs text-gray-400 mt-1">09:14</p></button> <button onclick="selectEmail(1)" id="email-1" class="w-full text-left p-3 bg-white rounded-lg border border-gray-100 shadow-sm"> <p class="font-semibold text-sm text-slate-900">Klaus Müller <span class="inline-block w-2 h-2 bg-red-500 rounded-full ml-1"></span></p>
-       <div class="flex items-center gap-2 mt-1">
-        <span class="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Mandantenanfrage</span>
-       </div><p class="text-xs text-gray-400 mt-1">09:31</p></button> <button onclick="selectEmail(2)" id="email-2" class="w-full text-left p-3 bg-white rounded-lg border border-gray-100 shadow-sm"> <p class="font-semibold text-sm text-slate-900">SoftwarePro GmbH</p>
-       <div class="flex items-center gap-2 mt-1">
-        <span class="text-xs px-1.5 py-0.5 bg-sky-100 text-sky-700 rounded">Eingangsrechnung</span> <span class="text-xs text-gray-400">1.190,00€</span>
-       </div><p class="text-xs text-gray-400 mt-1">10:02</p></button>
+   <nav class="flex-1 p-3 space-y-1" id="main-nav"><button onclick="navigate('dashboard')" class="nav-item active w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium" data-page="dashboard"><i data-lucide="layout-dashboard" style="width:18px;height:18px"></i>Dashboard</button> <button onclick="navigate('merchants')" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium" data-page="merchants"><i data-lucide="building-2" style="width:18px;height:18px"></i>Merchants</button> <button onclick="navigate('tasks')" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium" data-page="tasks"><i data-lucide="check-square" style="width:18px;height:18px"></i>Tasks</button> <button onclick="navigate('documents')" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium" data-page="documents"><i data-lucide="file-text" style="width:18px;height:18px"></i>Documents</button> <button onclick="navigate('agent')" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium" data-page="agent"><i data-lucide="bot" style="width:18px;height:18px"></i>AI Agent</button> <button onclick="navigate('audit')" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium" data-page="audit"><i data-lucide="scroll-text" style="width:18px;height:18px"></i>Audit Log</button> <button onclick="navigate('settings')" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium" data-page="settings"><i data-lucide="settings" style="width:18px;height:18px"></i>Settings</button>
+   </nav>
+  </aside><!-- Main -->
+  <div class="flex-1 flex flex-col overflow-hidden"><!-- Top bar -->
+   <header class="h-14 border-b border-gray-200 bg-white flex items-center justify-between px-6 shrink-0">
+    <h2 id="page-heading" class="font-semibold text-gray-900">Dashboard</h2>
+    <div class="relative"><button onclick="toggleNotifications()" class="relative p-2 rounded-lg hover:bg-gray-100"><i data-lucide="bell" style="width:20px;height:20px"></i><span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span></button>
+     <div id="notif-dropdown" class="hidden absolute right-0 top-12 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-3 space-y-2">
+      <p class="text-xs font-semibold text-gray-500 uppercase px-2">Notifications</p>
+      <div class="px-2 py-2 rounded-lg hover:bg-gray-50 text-sm">
+       🟢 Merchant uploaded Passport
+      </div>
+      <div class="px-2 py-2 rounded-lg hover:bg-gray-50 text-sm">
+       📧 Reminder sent to TechPay GmbH
+      </div>
+      <div class="px-2 py-2 rounded-lg hover:bg-gray-50 text-sm">
+       🔴 Document expired – PayFlow Ltd
+      </div>
+      <div class="px-2 py-2 rounded-lg hover:bg-gray-50 text-sm">
+       ✅ Merchant completed onboarding
+      </div>
      </div>
-    </div><!-- Detail -->
-    <div class="col-span-6">
-     <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Aufgaben-Detail</h2>
-     <div class="bg-white rounded-lg border border-gray-100 shadow-sm p-5">
-      <div id="detail-header">
-       <h3 id="detail-title" class="font-bold text-lg text-slate-900">Büromaterial GmbH</h3>
-       <p id="detail-type" class="text-sm text-gray-500 mb-3">Eingangsrechnung · 284,50€</p>
-       <div id="detail-body" class="text-sm text-gray-600 bg-gray-50 rounded p-3 mb-4 leading-relaxed">
-        Sehr geehrte Damen und Herren,<br><br>
-         anbei erhalten Sie unsere Rechnung Nr. 2024-0847 über Büromaterial.<br>
-         Nettobetrag: 239,00€<br>
-         MwSt. (19%): 45,50€<br>
-         Brutto: 284,50€<br><br>
-         Zahlungsziel: 14 Tage
-       </div>
-      </div><!-- Progress -->
-      <div class="mb-4">
-       <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Fortschritt</p>
-       <div class="space-y-1.5 text-sm">
-        <p id="step-ready" class="step-active">● Bereit</p>
-        <p id="step-anon" class="text-gray-400">○ Anonymisierung</p>
-        <p id="step-ai" class="text-gray-400">○ KI-Analyse</p>
-        <p id="step-approve" class="text-gray-400">○ Freigabe</p>
-       </div>
-      </div><!-- Agent Button -->
-      <div id="agent-btn-wrap">
-       <button id="agent-btn" onclick="startAgent()" class="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition"> <i data-lucide="play" style="width:18px;height:18px"></i> Agent starten </button>
-      </div><!-- AI Result (hidden initially) -->
-      <div id="ai-result" class="hidden fade-in">
-       <div class="border border-sky-200 bg-sky-50 rounded-lg p-4 mb-4">
-        <div class="flex items-center justify-between mb-3">
-         <h4 class="font-semibold text-slate-900">KI-Ergebnis</h4><span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">Konfidenz: hoch</span>
+    </div>
+   </header>
+   <main class="flex-1 overflow-y-auto bg-gray-50 p-6"><!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-xl p-5 border border-gray-200">
+       <p class="text-sm text-gray-500">Active Merchants</p>
+       <p class="text-2xl font-bold mt-1">128</p>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-gray-200">
+       <p class="text-sm text-gray-500">Waiting for Documents</p>
+       <p class="text-2xl font-bold mt-1 text-yellow-600">34</p>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-gray-200">
+       <p class="text-sm text-gray-500">Human Review</p>
+       <p class="text-2xl font-bold mt-1 text-red-600">7</p>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-gray-200">
+       <p class="text-sm text-gray-500">Completed this Month</p>
+       <p class="text-2xl font-bold mt-1 text-green-600">91</p>
+      </div>
+     </div>
+     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+       <h3 class="font-semibold">Active Onboardings</h3><button onclick="openNewMerchant()" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium">+ New Merchant</button>
+      </div>
+      <div class="overflow-x-auto">
+       <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-left text-gray-500">
+         <tr>
+          <th class="px-4 py-3 font-medium">Company</th>
+          <th class="px-4 py-3 font-medium">Country</th>
+          <th class="px-4 py-3 font-medium">Status</th>
+          <th class="px-4 py-3 font-medium">Progress</th>
+          <th class="px-4 py-3 font-medium">Last Activity</th>
+          <th class="px-4 py-3 font-medium">Owner</th>
+          <th class="px-4 py-3"></th>
+         </tr>
+        </thead>
+        <tbody id="merchant-table"></tbody>
+       </table>
+      </div>
+     </div>
+    </div><!-- MERCHANTS (same as dashboard table) -->
+    <div class="page" id="page-merchants">
+     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+       <h3 class="font-semibold">All Merchants</h3><button onclick="openNewMerchant()" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium">+ New Merchant</button>
+      </div>
+      <div class="overflow-x-auto">
+       <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-left text-gray-500">
+         <tr>
+          <th class="px-4 py-3 font-medium">Company</th>
+          <th class="px-4 py-3 font-medium">Country</th>
+          <th class="px-4 py-3 font-medium">Status</th>
+          <th class="px-4 py-3 font-medium">Progress</th>
+          <th class="px-4 py-3 font-medium">Owner</th>
+          <th class="px-4 py-3"></th>
+         </tr>
+        </thead>
+        <tbody id="merchant-table-2"></tbody>
+       </table>
+      </div>
+     </div>
+    </div><!-- MERCHANT DETAIL -->
+    <div class="page" id="page-detail"><button onclick="navigate('dashboard')" class="text-sm text-blue-600 hover:underline mb-4 inline-flex items-center gap-1"><i data-lucide="arrow-left" style="width:14px;height:14px"></i> Back</button>
+     <div class="flex items-center gap-3 mb-4">
+      <h2 id="detail-name" class="text-xl font-bold"></h2><span id="detail-badge" class="px-2 py-0.5 text-xs font-medium rounded-full"></span>
+     </div>
+     <div class="flex gap-2 border-b border-gray-200 mb-4"><button onclick="switchTab('overview')" class="tab-btn active px-4 py-2 text-sm font-medium border-b-2 border-transparent -mb-px">Overview</button> <button onclick="switchTab('docs')" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent -mb-px">Documents</button> <button onclick="switchTab('chat')" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent -mb-px">AI Conversation</button> <button onclick="switchTab('activity')" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent -mb-px">Activity</button>
+     </div><!-- Overview Tab -->
+     <div id="tab-overview" class="tab-content grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
+       <h4 class="font-semibold text-gray-900">Company Details</h4>
+       <div id="company-details" class="space-y-2 text-sm"></div>
+      </div>
+      <div class="space-y-4">
+       <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <h4 class="font-semibold text-gray-900 mb-3">KYC Progress</h4>
+        <div class="w-full bg-gray-200 rounded-full h-3">
+         <div id="progress-bar" class="bg-blue-600 h-3 rounded-full" style="width:80%"></div>
         </div>
-        <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Buchungsvorschlag</p>
-        <div class="grid grid-cols-2 gap-3 text-sm mb-3">
-         <div class="bg-white rounded p-2 border border-gray-100">
-          <p class="text-xs text-gray-400">Soll</p>
-          <p class="font-semibold text-slate-900">4980 · Bürobedarf</p>
+        <p id="progress-text" class="text-sm text-gray-500 mt-1">80%</p>
+       </div>
+       <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <h4 class="font-semibold text-gray-900 mb-3">Timeline</h4>
+        <div id="overview-timeline" class="space-y-3 text-sm"></div>
+       </div>
+      </div>
+     </div><!-- Documents Tab -->
+     <div id="tab-docs" class="tab-content hidden">
+      <div class="bg-white rounded-xl border border-gray-200 p-5">
+       <div class="flex justify-between items-center mb-4">
+        <h4 class="font-semibold">Required Documents</h4><button onclick="simulateUpload()" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Upload Document</button>
+       </div>
+       <div id="doc-list" class="space-y-2"></div>
+      </div>
+     </div><!-- Chat Tab -->
+     <div id="tab-chat" class="tab-content hidden">
+      <div class="bg-white rounded-xl border border-gray-200 p-5 max-w-2xl">
+       <div id="chat-messages" class="space-y-4 mb-4">
+        <div class="flex gap-3">
+         <span class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold shrink-0">AI</span>
+         <div class="bg-gray-100 rounded-lg px-3 py-2 text-sm">
+          Please upload your Utility Bill.
          </div>
-         <div class="bg-white rounded p-2 border border-gray-100">
-          <p class="text-xs text-gray-400">Haben</p>
-          <p class="font-semibold text-slate-900">1600 · Verbindlichkeiten</p>
+        </div>
+        <div class="flex gap-3 justify-end">
+         <div class="bg-blue-600 text-white rounded-lg px-3 py-2 text-sm">
+          Done.
+         </div><span class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold shrink-0">M</span>
+        </div>
+        <div class="flex gap-3">
+         <span class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold shrink-0">AI</span>
+         <div class="bg-gray-100 rounded-lg px-3 py-2 text-sm">
+          Thank you. I am validating your document.
          </div>
         </div>
-        <div class="flex gap-4 text-sm text-gray-600">
-         <span>Netto: 239,00€</span> <span>MwSt: 45,50€</span> <span class="font-semibold text-slate-900">Brutto: 284,50€</span>
+       </div>
+       <div class="flex gap-2"><input id="chat-input" type="text" placeholder="Simulate message..." class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"> <button onclick="sendChat()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg">Send</button>
+       </div>
+      </div>
+     </div><!-- Activity Tab -->
+     <div id="tab-activity" class="tab-content hidden">
+      <div class="bg-white rounded-xl border border-gray-200 p-5">
+       <h4 class="font-semibold mb-4">Activity Log</h4>
+       <div class="space-y-3 text-sm">
+        <div class="flex gap-3 items-start">
+         <span class="text-gray-400 w-12 shrink-0">09:21</span><span>Merchant created</span>
+        </div>
+        <div class="flex gap-3 items-start">
+         <span class="text-gray-400 w-12 shrink-0">09:24</span><span>Invitation sent</span>
+        </div>
+        <div class="flex gap-3 items-start">
+         <span class="text-gray-400 w-12 shrink-0">09:31</span><span>Passport uploaded</span>
+        </div>
+        <div class="flex gap-3 items-start">
+         <span class="text-gray-400 w-12 shrink-0">09:35</span><span>Passport validated ✅</span>
+        </div>
+        <div class="flex gap-3 items-start">
+         <span class="text-gray-400 w-12 shrink-0">09:37</span><span>Reminder scheduled</span>
+        </div>
+        <div class="flex gap-3 items-start">
+         <span class="text-gray-400 w-12 shrink-0">09:42</span><span class="text-red-600">Utility Bill missing</span>
         </div>
        </div>
-       <div class="flex items-center gap-2 mb-4 text-amber-600 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3">
-        <i data-lucide="alert-triangle" style="width:16px;height:16px"></i> <span>Mensch im Loop: Freigabe durch Steuerberater erforderlich</span>
+      </div>
+     </div>
+    </div><!-- TASKS -->
+    <div class="page" id="page-tasks">
+     <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <h3 class="font-semibold mb-4">Pending Tasks</h3>
+      <div class="space-y-3">
+       <div class="flex items-center justify-between p-3 rounded-lg border border-yellow-200 bg-yellow-50">
+        <div>
+         <p class="font-medium text-sm">Review expired Passport – PayFlow Ltd</p>
+         <p class="text-xs text-gray-500">Flagged 2h ago</p>
+        </div><span class="px-2 py-0.5 text-xs bg-yellow-200 text-yellow-800 rounded-full">Needs Review</span>
        </div>
-       <div class="flex gap-3">
-        <button onclick="handleAction('approve')" class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-lg flex items-center justify-center gap-1.5 transition text-sm"> <i data-lucide="check" style="width:16px;height:16px"></i> Freigeben </button> <button onclick="handleAction('escalate')" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg flex items-center justify-center gap-1.5 transition text-sm"> <i data-lucide="arrow-up" style="width:16px;height:16px"></i> Eskalieren </button> <button onclick="handleAction('reject')" class="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg flex items-center justify-center gap-1.5 transition text-sm"> <i data-lucide="x" style="width:16px;height:16px"></i> Ablehnen </button>
+       <div class="flex items-center justify-between p-3 rounded-lg border border-red-200 bg-red-50">
+        <div>
+         <p class="font-medium text-sm">⚠ Human Review Required – CryptoPay AG</p>
+         <p class="text-xs text-gray-500">Passport expired</p>
+        </div>
+        <div class="flex gap-2">
+         <button onclick="handleReview('approve')" class="px-2 py-1 text-xs bg-green-600 text-white rounded">Approve Exception</button><button onclick="handleReview('reject')" class="px-2 py-1 text-xs bg-red-600 text-white rounded">Reject</button><button onclick="handleReview('request')" class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded">Request New</button>
+        </div>
        </div>
-      </div><!-- Action Feedback -->
-      <div id="action-feedback" class="hidden fade-in mt-4 p-4 rounded-lg text-center"></div>
+       <div class="flex items-center justify-between p-3 rounded-lg border border-gray-200">
+        <div>
+         <p class="font-medium text-sm">Send reminder – TechPay GmbH</p>
+         <p class="text-xs text-gray-500">Scheduled in 1h</p>
+        </div><span class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">Scheduled</span>
+       </div>
+      </div>
+      <div id="review-feedback" class="mt-4 hidden p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-800"></div>
      </div>
-    </div><!-- Audit Trail -->
-    <div class="col-span-3">
-     <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Audit-Trail</h2>
-     <div id="audit-trail" class="bg-white rounded-lg border border-gray-100 shadow-sm p-4 space-y-3 text-xs">
-      <div class="border-l-2 border-sky-300 pl-3">
-       <p class="text-gray-400">08:59:01</p>
-       <p class="text-slate-700">DELEGAT gestartet. AVV aktiv.</p>
+    </div><!-- DOCUMENTS -->
+    <div class="page" id="page-documents">
+     <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <div class="flex flex-wrap gap-3 mb-4 items-center">
+       <h3 class="font-semibold">All Documents</h3>
+       <div class="flex gap-2 ml-auto"><button onclick="filterDocs('all')" class="px-3 py-1 text-xs rounded-full bg-blue-600 text-white">All</button> <button onclick="filterDocs('missing')" class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-700">Missing</button> <button onclick="filterDocs('expired')" class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">Expired</button> <button onclick="filterDocs('valid')" class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700">Valid</button>
+       </div>
+      </div>
+      <div id="all-docs-list" class="space-y-2 text-sm"></div>
+     </div>
+    </div><!-- AI AGENT -->
+    <div class="page" id="page-agent">
+     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-xl border border-gray-200 p-6">
+       <div class="flex items-center gap-2 mb-4">
+        <span class="w-3 h-3 bg-green-500 rounded-full ai-pulse"></span><span class="text-sm font-medium text-green-700">Running</span>
+       </div>
+       <h3 class="font-bold text-lg mb-1">Current Task</h3>
+       <p class="text-gray-600 mb-4">Request missing Utility Bill – TechPay GmbH</p>
+       <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+        <div class="bg-blue-600 h-2 rounded-full" style="width:72%"></div>
+       </div>
+       <p class="text-xs text-gray-500">72% complete</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-6">
+       <h3 class="font-bold text-lg mb-4">Agent Thought Process</h3>
+       <div class="space-y-3">
+        <div class="flex items-center gap-3">
+         <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs">1</span><span class="text-sm">Merchant missing Utility Bill</span>
+        </div>
+        <div class="pl-3 border-l-2 border-blue-200 h-4"></div>
+        <div class="flex items-center gap-3">
+         <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs">2</span><span class="text-sm">Send reminder email</span>
+        </div>
+        <div class="pl-3 border-l-2 border-blue-200 h-4"></div>
+        <div class="flex items-center gap-3">
+         <span class="w-6 h-6 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-xs">3</span><span class="text-sm font-medium">Wait for upload</span>
+        </div>
+        <div class="pl-3 border-l-2 border-gray-200 h-4"></div>
+        <div class="flex items-center gap-3">
+         <span class="w-6 h-6 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs">4</span><span class="text-sm text-gray-400">Validate document</span>
+        </div>
+        <div class="pl-3 border-l-2 border-gray-200 h-4"></div>
+        <div class="flex items-center gap-3">
+         <span class="w-6 h-6 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs">5</span><span class="text-sm text-gray-400">Notify Compliance</span>
+        </div>
+       </div>
+      </div>
+     </div>
+    </div><!-- AUDIT LOG -->
+    <div class="page" id="page-audit">
+     <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <h3 class="font-semibold mb-4">Audit Log</h3>
+      <div class="space-y-2 text-sm">
+       <div class="flex gap-4 items-start p-2 rounded hover:bg-gray-50">
+        <span class="text-gray-400 w-12 shrink-0">09:31</span><span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">AI</span><span>Requested Passport from TechPay GmbH</span>
+       </div>
+       <div class="flex gap-4 items-start p-2 rounded hover:bg-gray-50">
+        <span class="text-gray-400 w-12 shrink-0">09:35</span><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Merchant</span><span>Uploaded Passport</span>
+       </div>
+       <div class="flex gap-4 items-start p-2 rounded hover:bg-gray-50">
+        <span class="text-gray-400 w-12 shrink-0">09:37</span><span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">AI</span><span>Extracted information from Passport</span>
+       </div>
+       <div class="flex gap-4 items-start p-2 rounded hover:bg-gray-50">
+        <span class="text-gray-400 w-12 shrink-0">09:38</span><span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">AI</span><span>Reminder scheduled for Utility Bill</span>
+       </div>
+       <div class="flex gap-4 items-start p-2 rounded hover:bg-gray-50">
+        <span class="text-gray-400 w-12 shrink-0">09:40</span><span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">System</span><span>Compliance team notified</span>
+       </div>
+       <div class="flex gap-4 items-start p-2 rounded hover:bg-gray-50">
+        <span class="text-gray-400 w-12 shrink-0">09:42</span><span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">Alert</span><span>Utility Bill missing – TechPay GmbH</span>
+       </div>
+      </div>
+     </div>
+    </div><!-- SETTINGS -->
+    <div class="page" id="page-settings">
+     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-xl border border-gray-200 p-5">
+       <h4 class="font-semibold mb-3">Document Types</h4>
+       <div class="space-y-2 text-sm">
+        <div class="flex justify-between items-center p-2 rounded bg-gray-50">
+         <span>Passport</span><span class="text-green-600 text-xs">Active</span>
+        </div>
+        <div class="flex justify-between items-center p-2 rounded bg-gray-50">
+         <span>Handelsregister</span><span class="text-green-600 text-xs">Active</span>
+        </div>
+        <div class="flex justify-between items-center p-2 rounded bg-gray-50">
+         <span>Utility Bill</span><span class="text-green-600 text-xs">Active</span>
+        </div>
+        <div class="flex justify-between items-center p-2 rounded bg-gray-50">
+         <span>Bank Statement</span><span class="text-green-600 text-xs">Active</span>
+        </div>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-5">
+       <h4 class="font-semibold mb-3">Reminder Settings</h4>
+       <div class="space-y-3 text-sm">
+        <div class="flex justify-between items-center">
+         <span>First Reminder</span><span class="font-medium">24h</span>
+        </div>
+        <div class="flex justify-between items-center">
+         <span>Second Reminder</span><span class="font-medium">72h</span>
+        </div>
+        <div class="flex justify-between items-center">
+         <span>Escalation</span><span class="font-medium">7 days</span>
+        </div>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-5">
+       <h4 class="font-semibold mb-3">Email Templates</h4>
+       <div class="space-y-2 text-sm">
+        <div class="p-2 rounded bg-gray-50">
+         Welcome &amp; Document Request
+        </div>
+        <div class="p-2 rounded bg-gray-50">
+         Reminder
+        </div>
+        <div class="p-2 rounded bg-gray-50">
+         Onboarding Complete
+        </div>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-5">
+       <h4 class="font-semibold mb-3">Jurisdictions</h4>
+       <div class="flex flex-wrap gap-2 text-sm"><span class="px-2 py-1 bg-gray-100 rounded">🇩🇪 Germany</span> <span class="px-2 py-1 bg-gray-100 rounded">🇦🇹 Austria</span> <span class="px-2 py-1 bg-gray-100 rounded">🇨🇭 Switzerland</span> <span class="px-2 py-1 bg-gray-100 rounded">🇳🇱 Netherlands</span> <span class="px-2 py-1 bg-gray-100 rounded">🇬🇧 UK</span>
+       </div>
       </div>
      </div>
     </div>
+   </main>
+  </div><!-- New Merchant Modal -->
+  <div id="modal-new" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+   <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+    <h3 class="font-bold text-lg mb-4">New Merchant</h3>
+    <form id="new-merchant-form" class="space-y-3">
+     <div>
+      <label for="nm-company" class="text-sm font-medium text-gray-700">Company Name</label><input id="nm-company" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1" value="NewPay Solutions">
+     </div>
+     <div>
+      <label for="nm-country" class="text-sm font-medium text-gray-700">Country</label><input id="nm-country" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1" value="Germany">
+     </div>
+     <div>
+      <label for="nm-legal" class="text-sm font-medium text-gray-700">Legal Form</label><input id="nm-legal" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1" value="GmbH">
+     </div>
+     <div>
+      <label for="nm-contact" class="text-sm font-medium text-gray-700">Contact Person</label><input id="nm-contact" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1" value="Max Müller">
+     </div>
+     <div>
+      <label for="nm-email" class="text-sm font-medium text-gray-700">Email</label><input id="nm-email" type="email" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1" value="max@newpay.de">
+     </div>
+     <div class="flex gap-2 pt-2"><button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Create</button> <button type="button" onclick="closeNewMerchant()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">Cancel</button>
+     </div>
+    </form>
    </div>
-  </main><!-- ANONYMISIERUNG -->
-  <section id="view-anon" class="hidden p-6 max-w-5xl mx-auto">
-   <h2 data-template-id="anon-title" class="canva-text text-xl font-bold text-center mb-8"></h2>
-   <div class="grid grid-cols-3 gap-4 items-start mb-8">
-    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-     <h3 class="font-semibold text-sm text-red-700 mb-3 uppercase tracking-wide">Original E-Mail</h3>
-     <div class="space-y-2 text-sm text-slate-700">
-      <p><span class="text-gray-400">Von:</span> <span class="bg-red-100 px-1 rounded">Klaus Müller</span></p>
-      <p><span class="text-gray-400">IBAN:</span> <span class="bg-red-100 px-1 rounded">DE89 3704 0044 0532 0130 00</span></p>
-      <p><span class="text-gray-400">E-Mail:</span> <span class="bg-red-100 px-1 rounded">k.mueller@web.de</span></p>
-      <p><span class="text-gray-400">Betrag:</span> 284,50€</p>
-     </div>
+  </div><!-- Document Viewer Modal -->
+  <div id="modal-doc" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+   <div class="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+    <div class="flex justify-between items-center mb-4">
+     <h3 id="doc-viewer-title" class="font-bold text-lg"></h3><button onclick="closeDocViewer()" class="p-1 hover:bg-gray-100 rounded"><i data-lucide="x" style="width:20px;height:20px"></i></button>
     </div>
-    <div class="flex flex-col items-center">
-     <div class="text-gray-300 text-2xl mb-2">
-      ➜
-     </div>
-     <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 w-full">
-      <h3 class="font-semibold text-sm text-emerald-700 mb-3 uppercase tracking-wide">Nach Anonymisierung</h3>
-      <div class="space-y-2 text-sm text-slate-700">
-       <p><span class="text-gray-400">Von:</span> <span class="bg-emerald-100 px-1 rounded font-mono">[PERSON_1]</span></p>
-       <p><span class="text-gray-400">IBAN:</span> <span class="bg-emerald-100 px-1 rounded font-mono">[IBAN_1]</span></p>
-       <p><span class="text-gray-400">E-Mail:</span> <span class="bg-emerald-100 px-1 rounded font-mono">[EMAIL_2]</span></p>
-       <p><span class="text-gray-400">Betrag:</span> 284,50€</p>
-      </div>
-     </div>
-    </div>
-    <div class="flex flex-col items-center">
-     <div class="text-gray-300 text-2xl mb-2">
-      ➜
-     </div>
-     <div class="bg-sky-50 border border-sky-200 rounded-lg p-4 w-full">
-      <h3 class="font-semibold text-sm text-sky-700 mb-3 uppercase tracking-wide">Was KI sieht</h3>
-      <div class="space-y-2 text-sm text-slate-700">
-       <p><span class="text-gray-400">Von:</span> <span class="bg-sky-100 px-1 rounded font-mono">[PERSON_1]</span></p>
-       <p><span class="text-gray-400">IBAN:</span> <span class="bg-sky-100 px-1 rounded font-mono">[IBAN_1]</span></p>
-       <p><span class="text-gray-400">E-Mail:</span> <span class="bg-sky-100 px-1 rounded font-mono">[EMAIL_2]</span></p>
-       <p><span class="text-gray-400">Betrag:</span> 284,50€</p>
-      </div>
-     </div>
-    </div>
+    <div id="doc-viewer-content"></div>
    </div>
-   <div class="grid grid-cols-3 gap-4 mb-6">
-    <div class="bg-white border border-gray-100 rounded-lg p-4 text-center shadow-sm">
-     <p class="text-2xl mb-1">👤</p>
-     <p class="font-bold text-slate-900">3</p>
-     <p class="text-xs text-gray-500">Namen ersetzt</p>
-    </div>
-    <div class="bg-white border border-gray-100 rounded-lg p-4 text-center shadow-sm">
-     <p class="text-2xl mb-1">🏦</p>
-     <p class="font-bold text-slate-900">2</p>
-     <p class="text-xs text-gray-500">IBANs ersetzt</p>
-    </div>
-    <div class="bg-white border border-gray-100 rounded-lg p-4 text-center shadow-sm">
-     <p class="text-2xl mb-1">📧</p>
-     <p class="font-bold text-slate-900">4</p>
-     <p class="text-xs text-gray-500">E-Mails ersetzt</p>
-    </div>
-   </div>
-   <p data-template-id="anon-info" class="canva-text text-sm text-center text-gray-500 bg-gray-50 rounded-lg p-3 border border-gray-100"></p>
-  </section><!-- ROADMAP -->
-  <section id="view-roadmap" class="hidden p-6 max-w-4xl mx-auto">
-   <h2 data-template-id="roadmap-title" class="canva-text text-xl font-bold text-center mb-8"></h2>
-   <div class="space-y-5">
-    <div data-template-id="stage-1-card" class="canva-card rounded-xl p-5 border-2 border-emerald-200">
-     <div class="flex items-center gap-2 mb-3">
-      <span class="w-3 h-3 bg-emerald-500 rounded-full"></span>
-      <h3 data-template-id="stage-1-title" class="canva-text font-bold"></h3>
-     </div>
-     <div class="grid grid-cols-2 gap-2 text-sm text-slate-700 mb-3">
-      <p>✅ Cockpit mit E-Mail-Queue</p>
-      <p>✅ Anonymisierung (simuliert)</p>
-      <p>✅ Simulierte KI-Analyse</p>
-      <p>✅ Mensch-in-der-Schleife Freigabe</p>
-      <p>✅ Audit-Trail</p>
-     </div>
-     <p class="text-xs text-gray-400">Zeitrahmen: 1–2 Wochen · Tech: Canva Prototyp, Mock-Daten</p>
-    </div>
-    <div data-template-id="stage-2-card" class="canva-card rounded-xl p-5 border-2 border-sky-200">
-     <div class="flex items-center gap-2 mb-3">
-      <span class="w-3 h-3 bg-sky-500 rounded-full"></span>
-      <h3 data-template-id="stage-2-title" class="canva-text font-bold"></h3>
-     </div>
-     <div class="grid grid-cols-2 gap-2 text-sm text-slate-700 mb-3">
-      <p>🔵 DATEV API-Anbindung</p>
-      <p>🔵 E-Mail-Eingang (IMAP/Exchange)</p>
-      <p>🔵 Live-Anonymisierung (Regex + NER)</p>
-      <p>🔵 GPT-4 Integration</p>
-      <p>🔵 Pilot mit 1–2 Kanzleien</p>
-     </div>
-     <p class="text-xs text-gray-400">Zeitrahmen: 3–6 Monate · Tech: Python, FastAPI, PostgreSQL, OpenAI API</p>
-    </div>
-    <div data-template-id="stage-3-card" class="canva-card rounded-xl p-5 border-2 border-purple-200">
-     <div class="flex items-center gap-2 mb-3">
-      <span class="w-3 h-3 bg-purple-500 rounded-full"></span>
-      <h3 data-template-id="stage-3-title" class="canva-text font-bold"></h3>
-     </div>
-     <div class="grid grid-cols-2 gap-2 text-sm text-slate-700 mb-3">
-      <p>🟣 ISO 27001 Zertifizierung</p>
-      <p>🟣 Selbstgehostetes LLM (On-Premise)</p>
-      <p>🟣 DATEV Marketplace Integration</p>
-      <p>🟣 Multi-Mandanten-Fähigkeit</p>
-      <p>🟣 Rollout für 50+ Kanzleien</p>
-     </div>
-     <p class="text-xs text-gray-400">Zeitrahmen: 12–24 Monate · Tech: Kubernetes, LLaMA 3, SOC 2 Compliance</p>
-    </div>
-   </div>
-  </section>
+  </div>
+  <script src="/_sdk/editing_sdk.js"></script>
   <script>
+const merchants = [
+    { name:'TechPay GmbH', country:'Germany', status:'In Progress', progress:80, lastActivity:'2 min ago', owner:'Anna S.', legal:'GmbH', contact:'Jan Becker', email:'jan@techpay.de' },
+    { name:'PayFlow Ltd', country:'UK', status:'Waiting', progress:45, lastActivity:'1h ago', owner:'Mark R.', legal:'Ltd', contact:'Sarah White', email:'sarah@payflow.co.uk' },
+    { name:'CryptoPay AG', country:'Switzerland', status:'Review', progress:90, lastActivity:'30 min ago', owner:'Lisa M.', legal:'AG', contact:'Lukas Meier', email:'lukas@cryptopay.ch' },
+    { name:'EuroPay BV', country:'Netherlands', status:'Completed', progress:100, lastActivity:'Yesterday', owner:'Anna S.', legal:'BV', contact:'Pieter de Vries', email:'pieter@europay.nl' },
+    { name:'QuickTransfer GmbH', country:'Austria', status:'In Progress', progress:60, lastActivity:'4h ago', owner:'Mark R.', legal:'GmbH', contact:'Eva Gruber', email:'eva@quicktransfer.at' },
+];
+
+const docs = [
+    { name:'Handelsregister', status:'valid', merchant:'TechPay GmbH' },
+    { name:'Passport', status:'valid', merchant:'TechPay GmbH' },
+    { name:'Utility Bill', status:'missing', merchant:'TechPay GmbH' },
+    { name:'Bank Statement', status:'valid', merchant:'TechPay GmbH' },
+    { name:'Passport', status:'expired', merchant:'PayFlow Ltd' },
+    { name:'Utility Bill', status:'valid', merchant:'PayFlow Ltd' },
+];
+
+function statusBadge(s) {
+    const m = { 'In Progress':'bg-blue-100 text-blue-700','Waiting':'bg-yellow-100 text-yellow-700','Review':'bg-red-100 text-red-700','Completed':'bg-green-100 text-green-700' };
+    return `<span class="px-2 py-0.5 text-xs rounded-full font-medium ${m[s]||'bg-gray-100'}">${s}</span>`;
+}
+
+function renderTable(id) {
+    const tb = document.getElementById(id);
+    tb.innerHTML = merchants.map((m,i) => `<tr class="border-t border-gray-100 hover:bg-gray-50 cursor-pointer" onclick="openDetail(${i})"><td class="px-4 py-3 font-medium">${m.name}</td><td class="px-4 py-3">${m.country}</td><td class="px-4 py-3">${statusBadge(m.status)}</td><td class="px-4 py-3"><div class="w-24 bg-gray-200 rounded-full h-2"><div class="bg-blue-600 h-2 rounded-full" style="width:${m.progress}%"></div></div></td>${id==='merchant-table'?`<td class="px-4 py-3 text-gray-500">${m.lastActivity}</td>`:''}<td class="px-4 py-3 text-gray-500">${m.owner}</td><td class="px-4 py-3"><button class="text-blue-600 text-xs font-medium hover:underline">Open</button></td></tr>`).join('');
+}
+
+function navigate(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
+    const titles = { dashboard:'Dashboard', merchants:'Merchants', tasks:'Tasks', documents:'Documents', agent:'AI Agent', audit:'Audit Log', settings:'Settings', detail:'Merchant Detail' };
+    document.getElementById('page-heading').textContent = titles[page] || '';
+    if (page === 'merchants') renderTable('merchant-table-2');
+    if (page === 'documents') renderAllDocs('all');
+}
+
+function openDetail(i) {
+    const m = merchants[i];
+    document.getElementById('detail-name').textContent = m.name;
+    document.getElementById('detail-badge').textContent = m.status;
+    document.getElementById('detail-badge').className = `px-2 py-0.5 text-xs font-medium rounded-full ${m.status==='Completed'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}`;
+    document.getElementById('progress-bar').style.width = m.progress + '%';
+    document.getElementById('progress-text').textContent = m.progress + '%';
+    document.getElementById('company-details').innerHTML = `<p><span class="text-gray-500">Company:</span> ${m.name}</p><p><span class="text-gray-500">Legal Form:</span> ${m.legal}</p><p><span class="text-gray-500">Country:</span> ${m.country}</p><p><span class="text-gray-500">Contact:</span> ${m.contact}</p><p><span class="text-gray-500">Email:</span> ${m.email}</p>`;
+    document.getElementById('overview-timeline').innerHTML = ['Merchant created','Documents requested','Passport uploaded','Registry validated','Waiting for Utility Bill'].map((t,idx) => `<div class="flex items-center gap-3"><span class="w-2 h-2 rounded-full ${idx<4?'bg-green-500':'bg-yellow-500'}"></span><span>${t}</span></div>`).join('');
+    const mDocs = docs.filter(d => d.merchant === m.name);
+    document.getElementById('doc-list').innerHTML = (mDocs.length ? mDocs : docs.slice(0,4)).map(d => {
+        const icons = { valid:'🟢', missing:'🔴', expired:'🟡' };
+        return `<div class="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer" onclick="openDocViewer('${d.name}','${d.status}')"><span>${icons[d.status]} ${d.name}</span><span class="text-xs capitalize ${d.status==='valid'?'text-green-600':d.status==='missing'?'text-red-600':'text-yellow-600'}">${d.status}</span></div>`;
+    }).join('');
+    switchTab('overview');
+    navigate('detail');
+    document.getElementById('page-heading').textContent = m.name;
+}
+
+function switchTab(t) {
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    document.getElementById('tab-' + t).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+}
+
+function openDocViewer(name, status) {
+    document.getElementById('doc-viewer-title').textContent = name;
+    const s = status === 'valid' ? '<span class="text-green-600 font-medium">✓ Valid</span>' : status === 'missing' ? '<span class="text-red-600 font-medium">✗ Missing</span>' : '<span class="text-yellow-600 font-medium">⚠ Expired</span>';
+    document.getElementById('doc-viewer-content').innerHTML = `
+        <div class="bg-gray-100 rounded-lg h-40 flex items-center justify-center text-gray-400 mb-4"><i data-lucide="file-text" style="width:48px;height:48px"></i></div>
+        <div class="space-y-2 text-sm">
+            <p><span class="text-gray-500">Status:</span> ${s}</p>
+            <p><span class="text-gray-500">Extracted Name:</span> Jan Becker</p>
+            <p><span class="text-gray-500">Expiry:</span> 08.02.2032</p>
+            <p><span class="text-gray-500">Confidence:</span> <span class="font-medium text-green-600">98%</span></p>
+            <p><span class="text-gray-500">AI Comment:</span> Document appears authentic. All fields readable.</p>
+        </div>`;
+    document.getElementById('modal-doc').classList.remove('hidden');
     lucide.createIcons();
+}
+function closeDocViewer() { document.getElementById('modal-doc').classList.add('hidden'); }
 
-    const emails = [
-        { title: 'Büromaterial GmbH', type: 'Eingangsrechnung', amount: '284,50€', time: '09:14', body: 'Sehr geehrte Damen und Herren,<br><br>anbei erhalten Sie unsere Rechnung Nr. 2024-0847 über Büromaterial.<br>Nettobetrag: 239,00€<br>MwSt. (19%): 45,50€<br>Brutto: 284,50€<br><br>Zahlungsziel: 14 Tage' },
-        { title: 'Klaus Müller', type: 'Mandantenanfrage', amount: '', time: '09:31', body: 'Guten Tag,<br><br>ich habe eine Frage zu meiner Einkommensteuererklärung 2023. Können Sie mir mitteilen, ob meine Belege vollständig sind?<br><br>Mit freundlichen Grüßen<br>Klaus Müller' },
-        { title: 'SoftwarePro GmbH', type: 'Eingangsrechnung', amount: '1.190,00€', time: '10:02', body: 'Rechnung Nr. SP-2024-1203<br><br>Jahreslizenzen Buchhaltungssoftware<br>Netto: 1.000,00€<br>MwSt. (19%): 190,00€<br>Brutto: 1.190,00€<br><br>Zahlungsziel: 30 Tage' }
-    ];
+function simulateUpload() {
+    const list = document.getElementById('doc-list');
+    const el = document.createElement('div');
+    el.className = 'p-3 rounded-lg border border-blue-200 bg-blue-50 text-sm text-blue-700 flex items-center gap-2';
+    el.innerHTML = '<span class="ai-pulse">●</span> AI is analysing document...';
+    list.prepend(el);
+    setTimeout(() => {
+        el.className = 'p-3 rounded-lg border border-green-200 bg-green-50 text-sm';
+        el.innerHTML = '<div><p class="font-medium text-green-700">✓ Passport – Valid</p><p class="text-gray-600 mt-1">Name: Jan Becker | Expiry: 08.02.2032 | Confidence: 98%</p></div>';
+    }, 2000);
+}
 
-    let selectedEmail = 0;
-    let agentRan = false;
+function sendChat() {
+    const input = document.getElementById('chat-input');
+    if (!input.value.trim()) return;
+    const msgs = document.getElementById('chat-messages');
+    msgs.innerHTML += `<div class="flex gap-3 justify-end"><div class="bg-blue-600 text-white rounded-lg px-3 py-2 text-sm">${input.value}</div><span class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold shrink-0">M</span></div>`;
+    input.value = '';
+    setTimeout(() => {
+        msgs.innerHTML += `<div class="flex gap-3"><span class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold shrink-0">AI</span><div class="bg-gray-100 rounded-lg px-3 py-2 text-sm">Thank you. I'll process this right away.</div></div>`;
+        msgs.scrollTop = msgs.scrollHeight;
+    }, 1000);
+}
 
-    function selectEmail(idx) {
-        selectedEmail = idx;
-        agentRan = false;
-        document.querySelectorAll('#email-list button').forEach((el, i) => {
-            el.className = i === idx ? 'email-selected w-full text-left p-3 bg-white rounded-lg border border-gray-100 shadow-sm' : 'w-full text-left p-3 bg-white rounded-lg border border-gray-100 shadow-sm';
-        });
-        const e = emails[idx];
-        document.getElementById('detail-title').textContent = e.title;
-        document.getElementById('detail-type').textContent = e.type + (e.amount ? ' · ' + e.amount : '');
-        document.getElementById('detail-body').innerHTML = e.body;
-        document.getElementById('agent-btn-wrap').classList.remove('hidden');
-        document.getElementById('ai-result').classList.add('hidden');
-        document.getElementById('action-feedback').classList.add('hidden');
-        resetSteps();
-    }
+function openNewMerchant() { document.getElementById('modal-new').classList.remove('hidden'); }
+function closeNewMerchant() { document.getElementById('modal-new').classList.add('hidden'); }
 
-    function resetSteps() {
-        document.getElementById('step-ready').className = 'step-active';
-        document.getElementById('step-anon').className = 'text-gray-400';
-        document.getElementById('step-ai').className = 'text-gray-400';
-        document.getElementById('step-approve').className = 'text-gray-400';
-    }
+document.getElementById('new-merchant-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const name = document.getElementById('nm-company').value;
+    merchants.unshift({ name, country: document.getElementById('nm-country').value, status:'In Progress', progress:0, lastActivity:'Just now', owner:'You', legal: document.getElementById('nm-legal').value, contact: document.getElementById('nm-contact').value, email: document.getElementById('nm-email').value });
+    closeNewMerchant();
+    renderTable('merchant-table');
+    navigate('dashboard');
+});
 
-    function startAgent() {
-        document.getElementById('agent-btn-wrap').classList.add('hidden');
-        agentRan = true;
+function toggleNotifications() { document.getElementById('notif-dropdown').classList.toggle('hidden'); }
 
-        // Animate steps
-        setTimeout(() => {
-            document.getElementById('step-ready').className = 'step-done';
-            document.getElementById('step-ready').textContent = '✓ Bereit';
-            document.getElementById('step-anon').className = 'step-active';
-            document.getElementById('step-anon').textContent = '● Anonymisierung';
-            addAudit('Anonymisierung abgeschlossen');
-        }, 600);
+function handleReview(action) {
+    const fb = document.getElementById('review-feedback');
+    const msgs = { approve:'Exception approved. Merchant can proceed.', reject:'Document rejected. Merchant notified.', request:'New document requested from merchant.' };
+    fb.textContent = '✓ ' + msgs[action];
+    fb.classList.remove('hidden');
+}
 
-        setTimeout(() => {
-            document.getElementById('step-anon').className = 'step-done';
-            document.getElementById('step-anon').textContent = '✓ Anonymisierung';
-            document.getElementById('step-ai').className = 'step-active';
-            document.getElementById('step-ai').textContent = '● KI-Analyse';
-            addAudit('KI-Analyse abgeschlossen');
-            document.getElementById('stat-gdpr').textContent = '1';
-        }, 1400);
+function renderAllDocs(filter) {
+    const list = document.getElementById('all-docs-list');
+    const filtered = filter === 'all' ? docs : docs.filter(d => d.status === filter);
+    const icons = { valid:'🟢', missing:'🔴', expired:'🟡' };
+    list.innerHTML = filtered.map(d => `<div class="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50"><span>${icons[d.status]} ${d.name}</span><span class="text-gray-500">${d.merchant}</span><span class="text-xs capitalize ${d.status==='valid'?'text-green-600':d.status==='missing'?'text-red-600':'text-yellow-600'}">${d.status}</span></div>`).join('');
+}
+function filterDocs(f) { renderAllDocs(f); }
 
-        setTimeout(() => {
-            document.getElementById('step-ai').className = 'step-done';
-            document.getElementById('step-ai').textContent = '✓ KI-Analyse';
-            document.getElementById('step-approve').className = 'step-active';
-            document.getElementById('step-approve').textContent = '● Freigabe';
-            document.getElementById('ai-result').classList.remove('hidden');
-            lucide.createIcons();
-        }, 2200);
-    }
-
-    function handleAction(action) {
-        const fb = document.getElementById('action-feedback');
-        fb.classList.remove('hidden');
-        if (action === 'approve') {
-            fb.className = 'fade-in mt-4 p-4 rounded-lg text-center bg-emerald-50 border border-emerald-200 text-emerald-700';
-            fb.innerHTML = '✓ Buchung freigegeben und an DATEV übermittelt.';
-            document.getElementById('stat-done').textContent = String(parseInt(document.getElementById('stat-done').textContent) + 1);
-            document.getElementById('stat-saved').textContent = String(parseInt(document.getElementById('stat-saved').textContent) + 4);
-            addAudit('Buchung freigegeben (StB)');
-        } else if (action === 'escalate') {
-            fb.className = 'fade-in mt-4 p-4 rounded-lg text-center bg-amber-50 border border-amber-200 text-amber-700';
-            fb.innerHTML = '↑ An Senior-Steuerberater eskaliert.';
-            addAudit('Eskaliert an Senior-StB');
-        } else {
-            fb.className = 'fade-in mt-4 p-4 rounded-lg text-center bg-red-50 border border-red-200 text-red-700';
-            fb.innerHTML = '✗ Vorschlag abgelehnt. Manuelle Bearbeitung erforderlich.';
-            addAudit('Vorschlag abgelehnt');
-        }
-        document.getElementById('ai-result').querySelector('.flex.gap-3').classList.add('hidden');
-        document.getElementById('step-approve').className = 'step-done';
-        document.getElementById('step-approve').textContent = '✓ Freigabe';
-    }
-
-    function addAudit(text) {
-        const trail = document.getElementById('audit-trail');
-        const now = new Date();
-        const time = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const entry = document.createElement('div');
-        entry.className = 'border-l-2 border-sky-300 pl-3 fade-in';
-        entry.innerHTML = `<p class="text-gray-400">${time}</p><p class="text-slate-700">${text}</p>`;
-        trail.appendChild(entry);
-    }
-
-    function switchTab(tab) {
-        ['cockpit', 'anon', 'roadmap'].forEach(t => {
-            document.getElementById('view-' + t)?.classList.toggle('hidden', t !== tab);
-            document.getElementById('tab-' + t).className = t === tab ? 'py-3 text-sm font-medium tab-active' : 'py-3 text-sm font-medium text-gray-500 hover:text-gray-700';
-        });
-    }
+// Init
+renderTable('merchant-table');
+lucide.createIcons();
 </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a10e608cb5d51a34',t:'MTc4MjMzMTgzOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a123c0e0c46703be',t:'MTc4MjU1NTk4Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
