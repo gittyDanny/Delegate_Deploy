@@ -1,8 +1,7 @@
-import mimetypes
+from pathlib import Path
 
-from flask import Blueprint, current_app, redirect, render_template, request, send_from_directory, url_for
+from flask import Blueprint, current_app, redirect, render_template, request, send_file, url_for
 
-from config import ALLOWED_EXTENSIONS
 from models.database import get_connection
 from models.repositories import (
     add_audit_log,
@@ -82,19 +81,21 @@ def view_document_file(document_id: int):
     if not document:
         return "Document not found", 404
 
-    mime_type, _ = mimetypes.guess_type(document["original_filename"])
+    upload_root = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
+    file_path = (upload_root / document["stored_filename"]).resolve()
 
-    response = send_from_directory(
-        current_app.config["UPLOAD_FOLDER"],
-        document["stored_filename"],
+    if not str(file_path).startswith(str(upload_root)):
+        return "Invalid file path", 400
+
+    if not file_path.exists():
+        return f"File not found: {file_path}", 404
+
+    return send_file(
+        file_path,
+        mimetype="application/pdf",
         as_attachment=False,
-        mimetype=mime_type or "application/pdf",
         download_name=document["original_filename"],
     )
-
-    response.headers["Content-Disposition"] = f'inline; filename="{document["original_filename"]}"'
-
-    return response
 
 
 @web_bp.route("/merchant/<int:merchant_id>/document/<int:document_id>/approve", methods=["POST"])
@@ -113,7 +114,13 @@ def approve_document(merchant_id: int, document_id: int):
             return "Document not found", 404
 
         if document["status"] == "valid":
-            return redirect(url_for("web.document_detail", merchant_id=merchant_id, document_id=document_id))
+            return redirect(
+                url_for(
+                    "web.document_detail",
+                    merchant_id=merchant_id,
+                    document_id=document_id,
+                )
+            )
 
         connection.execute(
             """
@@ -140,7 +147,13 @@ def approve_document(merchant_id: int, document_id: int):
         message=f"Approved document: {document['original_filename']}",
     )
 
-    return redirect(url_for("web.document_detail", merchant_id=merchant_id, document_id=document_id))
+    return redirect(
+        url_for(
+            "web.document_detail",
+            merchant_id=merchant_id,
+            document_id=document_id,
+        )
+    )
 
 
 @web_bp.route("/merchant/<int:merchant_id>/document/<int:document_id>/reject", methods=["POST"])
@@ -164,7 +177,13 @@ def reject_document(merchant_id: int, document_id: int):
             return "Document not found", 404
 
         if document["status"] == "rejected":
-            return redirect(url_for("web.document_detail", merchant_id=merchant_id, document_id=document_id))
+            return redirect(
+                url_for(
+                    "web.document_detail",
+                    merchant_id=merchant_id,
+                    document_id=document_id,
+                )
+            )
 
         connection.execute(
             """
@@ -191,7 +210,13 @@ def reject_document(merchant_id: int, document_id: int):
         message=f"Rejected document: {document['original_filename']}. Reason: {reason}",
     )
 
-    return redirect(url_for("web.document_detail", merchant_id=merchant_id, document_id=document_id))
+    return redirect(
+        url_for(
+            "web.document_detail",
+            merchant_id=merchant_id,
+            document_id=document_id,
+        )
+    )
 
 
 @web_bp.route("/merchant/<int:merchant_id>/close", methods=["POST"])
@@ -341,7 +366,3 @@ def recalculate_merchant_status(connection, merchant_id: int) -> None:
         """,
         (merchant_status, progress, merchant_id),
     )
-
-
-def allowed_file(filename: str) -> bool:
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS

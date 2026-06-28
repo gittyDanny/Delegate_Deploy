@@ -1,4 +1,5 @@
 import re
+import uuid
 from pathlib import Path
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
@@ -35,7 +36,12 @@ def normalize_company_name(company_name: str) -> str:
 
     company_name = re.sub(r"[^a-zA-Z0-9\s]", "", company_name)
 
-    return company_name.strip().replace(" ", "_").lower()
+    normalized = company_name.strip().replace(" ", "_").lower()
+
+    if not normalized:
+        return "unknown_company"
+
+    return normalized
 
 
 def allowed_file(filename: str) -> bool:
@@ -48,6 +54,20 @@ def get_company_folder(merchant_id: int, company_name: str) -> tuple[Path, str]:
     folder_path.mkdir(parents=True, exist_ok=True)
 
     return folder_path, folder_name
+
+
+def build_safe_unique_filename(original_filename: str) -> str:
+    safe_name = secure_filename(original_filename)
+
+    if not safe_name:
+        safe_name = "uploaded_document.pdf"
+
+    suffix = Path(safe_name).suffix
+    stem = Path(safe_name).stem
+
+    unique_token = uuid.uuid4().hex[:8]
+
+    return f"{stem}_{unique_token}{suffix}"
 
 
 @merchant_bp.route("/login")
@@ -133,23 +153,43 @@ def upload():
 
     company_folder, folder_name = get_company_folder(merchant_id, company_name)
     saved_count = 0
+    saved_original_names = []
 
     for uploaded_file in usable_files:
-        if not allowed_file(uploaded_file.filename):
-            flash(f"Dateityp nicht unterstützt: {uploaded_file.filename}")
+        original_filename = uploaded_file.filename
+
+        if not allowed_file(original_filename):
+            flash(f"Dateityp nicht unterstützt: {original_filename}")
+            add_audit_log(
+                merchant_id=merchant_id,
+                actor="Merchant",
+                event_type="upload_rejected",
+                message=f"Unsupported file type: {original_filename}",
+            )
             continue
 
-        filename = secure_filename(uploaded_file.filename)
-        full_path = company_folder / filename
-        uploaded_file.save(full_path)
+        stored_file_name = build_safe_unique_filename(original_filename)
+        absolute_file_path = company_folder / stored_file_name
 
-        stored_filename = f"{folder_name}/{filename}"
+        uploaded_file.save(absolute_file_path)
 
-        requirement_type, requirement_label, confidence = classify_uploaded_filename(filename)
+        if not absolute_file_path.exists():
+            flash(f"Datei konnte nicht gespeichert werden: {original_filename}")
+            add_audit_log(
+                merchant_id=merchant_id,
+                actor="System",
+                event_type="file_save_failed",
+                message=f"File was not found after save attempt: {absolute_file_path}",
+            )
+            continue
 
-        save_merchant_uploaded_document(
+        stored_filename = f"{folder_name}/{stored_file_name}"
+
+        requirement_type, requirement_label, confidence = classify_uploaded_filename(original_filename)
+
+        document_id = save_merchant_uploaded_document(
             merchant_id=merchant_id,
-            original_filename=filename,
+            original_filename=original_filename,
             stored_filename=stored_filename,
             requirement_type=requirement_type,
             requirement_label=requirement_label,
@@ -160,10 +200,14 @@ def upload():
             merchant_id=merchant_id,
             actor="Merchant",
             event_type="document_uploaded",
-            message=f"Merchant uploaded document: {filename}",
+            message=(
+                f"Uploaded document id={document_id}: "
+                f"original='{original_filename}', stored='{stored_filename}'"
+            ),
         )
 
         saved_count += 1
+        saved_original_names.append(original_filename)
 
     if saved_count:
         add_chat_message(
@@ -173,6 +217,13 @@ def upload():
         )
 
         analyze_merchant_case(merchant_id)
+
+        add_audit_log(
+            merchant_id=merchant_id,
+            actor="AI",
+            event_type="analysis_triggered_after_upload",
+            message=f"Analysis triggered after upload of {saved_count} document(s): {', '.join(saved_original_names)}",
+        )
 
         flash(f"{saved_count} Dokument(e) erfolgreich hochgeladen und analysiert.")
 

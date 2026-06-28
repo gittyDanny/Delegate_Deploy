@@ -2,45 +2,41 @@ from pathlib import Path
 
 import fitz
 
-try:
-    from docling.document_converter import DocumentConverter
-except Exception:
-    DocumentConverter = None
-
 
 def read_document(file_path: str) -> str:
     path = Path(file_path)
+
+    if not path.exists():
+        return ""
+
     suffix = path.suffix.lower()
 
-    if suffix == ".txt":
-        return path.read_text(encoding="utf-8", errors="ignore")
-
     if suffix == ".pdf":
-        text = read_pdf_with_pymupdf(file_path)
+        return read_pdf_text(path)
 
-        if len(text.strip()) > 80:
-            return text
+    if suffix in {".txt", ".csv"}:
+        return read_text_file(path)
 
-        return read_with_docling(file_path)
-
-    if suffix in [".png", ".jpg", ".jpeg"]:
-        return read_with_docling(file_path)
-
-    raise ValueError("Unsupported file type.")
+    return ""
 
 
-def read_pdf_with_pymupdf(file_path: str) -> str:
-    with fitz.open(file_path) as document:
-        pages = [page.get_text(sort=True) for page in document]
+def read_pdf_text(path: Path) -> str:
+    texts = []
 
-    return "\n".join(pages)
+    try:
+        with fitz.open(path) as document:
+            for page in document:
+                page_text = page.get_text("text")
+                if page_text:
+                    texts.append(page_text)
+    except Exception as error:
+        return f"READ_ERROR: {error}"
+
+    return "\n".join(texts).strip()
 
 
-def read_with_docling(file_path: str) -> str:
-    if DocumentConverter is None:
-        raise RuntimeError("Docling is not installed or could not be imported.")
-
-    converter = DocumentConverter()
-    result = converter.convert(file_path)
-
-    return result.document.export_to_markdown()
+def read_text_file(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="ignore")
+    except Exception as error:
+        return f"READ_ERROR: {error}"
