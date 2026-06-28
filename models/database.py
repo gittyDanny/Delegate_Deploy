@@ -94,6 +94,15 @@ def init_db() -> None:
                 FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                merchant_id INTEGER NOT NULL,
+                sender TEXT NOT NULL,
+                message TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
+            );
+
             CREATE TABLE IF NOT EXISTS audit_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 merchant_id INTEGER NOT NULL,

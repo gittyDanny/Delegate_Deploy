@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Delegat Proof of Concept</title>
+    <title>Delegate Proof of Concept</title>
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
@@ -21,50 +21,51 @@
 <body class="bg-gray-50 text-gray-900">
     <div class="min-h-screen flex">
         <aside class="w-64 bg-gray-950 text-white p-6 fixed h-screen">
-            <h1 class="text-2xl font-bold mb-1">Delegat</h1>
+            <h1 class="text-2xl font-bold mb-1">Delegate</h1>
             <p class="text-xs text-gray-400 mb-8">Proof of Concept</p>
 
             <nav class="space-y-2 text-sm">
-                <a href="{{ url_for('web.dashboard') }}#dashboard"
+                <a href="{{ url_for('web.dashboard') }}"
                    class="block px-3 py-2 rounded-lg hover:bg-gray-800">
                     Dashboard
                 </a>
 
-                <a href="{{ url_for('web.dashboard') }}#merchants"
+                <a href="{{ url_for('merchant.login_page') }}"
                    class="block px-3 py-2 rounded-lg hover:bg-gray-800">
-                    Merchants
+                    Merchant Portal
                 </a>
 
-                {% if merchant is defined %}
-                    <a href="{{ url_for('web.merchant_detail', merchant_id=merchant.id) }}#documents"
-                       class="block px-3 py-2 rounded-lg hover:bg-gray-800">
-                        Documents
-                    </a>
+                {% if merchant is defined and merchant %}
+                    <div class="pt-4 mt-4 border-t border-gray-800">
+                        <p class="px-3 mb-2 text-xs uppercase tracking-wide text-gray-500">
+                            Current Case
+                        </p>
 
-                    <a href="{{ url_for('web.merchant_detail', merchant_id=merchant.id) }}#ai-agent"
-                       class="block px-3 py-2 rounded-lg hover:bg-gray-800">
-                        AI Agent
-                    </a>
+                        <a href="{{ url_for('web.merchant_detail', merchant_id=merchant.id) }}"
+                           class="block px-3 py-2 rounded-lg hover:bg-gray-800">
+                            Case Overview
+                        </a>
 
-                    <a href="{{ url_for('web.audit_log', merchant_id=merchant.id) }}"
-                       class="block px-3 py-2 rounded-lg hover:bg-gray-800">
-                        Audit Log
-                    </a>
-                {% else %}
-                    <a href="{{ url_for('web.dashboard') }}#merchants"
-                       class="block px-3 py-2 rounded-lg hover:bg-gray-800">
-                        Documents
-                    </a>
+                        <a href="{{ url_for('web.merchant_detail', merchant_id=merchant.id) }}#documents"
+                           class="block px-3 py-2 rounded-lg hover:bg-gray-800">
+                            Documents
+                        </a>
 
-                    <a href="{{ url_for('web.dashboard') }}#dashboard"
-                       class="block px-3 py-2 rounded-lg hover:bg-gray-800">
-                        AI Agent
-                    </a>
+                        <a href="{{ url_for('web.merchant_detail', merchant_id=merchant.id) }}#ai-agent"
+                           class="block px-3 py-2 rounded-lg hover:bg-gray-800">
+                            AI Agent
+                        </a>
 
-                    <a href="{{ url_for('web.dashboard') }}#dashboard"
-                       class="block px-3 py-2 rounded-lg hover:bg-gray-800">
-                        Audit Log
-                    </a>
+                        <a href="{{ url_for('web.merchant_detail', merchant_id=merchant.id) }}#shared-chat"
+                           class="block px-3 py-2 rounded-lg hover:bg-gray-800">
+                            Chat
+                        </a>
+
+                        <a href="{{ url_for('web.audit_log', merchant_id=merchant.id) }}"
+                           class="block px-3 py-2 rounded-lg hover:bg-gray-800">
+                            Audit Log
+                        </a>
+                    </div>
                 {% endif %}
             </nav>
         </aside>

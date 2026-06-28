@@ -1,80 +1,258 @@
 {% extends "base.html" %}
 
 {% block content %}
-<a href="{{ url_for('web.merchant_detail', merchant_id=merchant.id) }}" class="text-sm text-blue-600">← Back to Merchant Case</a>
+<a href="{{ url_for('web.dashboard') }}" class="text-sm text-blue-600">← Back to Dashboard</a>
 
 <div class="flex justify-between items-start mt-4 mb-6">
     <div>
-        <h2 class="text-2xl font-bold">{{ document.original_filename }}</h2>
+        <h2 class="text-2xl font-bold">{{ merchant.name }}</h2>
         <p class="text-sm text-gray-500">
-            {{ document.requirement_label or "No group" }} · {{ document.document_label or document.ml_document_type or "Unknown" }}
+            {{ merchant.legal_form }} · {{ merchant.country }} · {{ merchant.email }}
         </p>
 
-        {% if document.status == "valid" %}
-            <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-green-100 text-green-700">Valid</span>
-        {% elif document.status == "review" %}
-            <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">Review</span>
-        {% elif document.status == "rejected" %}
-            <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">Rejected</span>
-        {% else %}
-            <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">{{ document.status }}</span>
-        {% endif %}
+        <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+            {{ merchant.status }}
+        </span>
     </div>
 
-    <a href="{{ url_for('web.view_document_file', document_id=document.id) }}" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-        View Original File
-    </a>
+    <div class="flex gap-2">
+        <a href="{{ url_for('merchant.login_page') }}" class="px-4 py-2 bg-white border rounded-lg text-sm hover:bg-gray-50">
+            Merchant Portal
+        </a>
+
+        <a href="{{ url_for('web.audit_log', merchant_id=merchant.id) }}" class="px-4 py-2 bg-white border rounded-lg text-sm hover:bg-gray-50">
+            Audit Log
+        </a>
+
+        {% if merchant.status != "Case Closed" and merchant.status == "Ready for Human Risk Review" %}
+        <form action="{{ url_for('web.close_case', merchant_id=merchant.id) }}" method="POST">
+            <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800">
+                Close Case
+            </button>
+        </form>
+        {% endif %}
+    </div>
 </div>
+
+{% if merchant.status == "Case Closed" %}
+<div class="bg-gray-100 border rounded-xl p-4 mb-6 text-sm text-gray-700">
+    Dieser Case ist geschlossen. Der Chat und Audit Log bleiben weiterhin sichtbar.
+</div>
+{% endif %}
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <section id="documents" class="bg-white border rounded-xl p-5">
-        <h3 class="font-semibold mb-4">Extracted Fields</h3>
+        <h3 class="font-semibold mb-4">Document Groups / Case Form</h3>
 
-        <div class="grid grid-cols-1 gap-3 text-sm">
-            <p><span class="text-gray-500">Detected Type:</span> {{ document.document_label or document.ml_document_type or "-" }}</p>
-            <p><span class="text-gray-500">Classification Confidence:</span> {{ document.classification_confidence or document.ml_confidence or 0 }}%</p>
-            <p><span class="text-gray-500">Validation:</span> {{ document.validation_label or "-" }}</p>
+        <div class="overflow-hidden border rounded-xl">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-500 text-left">
+                    <tr>
+                        <th class="px-3 py-2">Requirement</th>
+                        <th class="px-3 py-2">Docs</th>
+                        <th class="px-3 py-2">Confidence</th>
+                        <th class="px-3 py-2">Status</th>
+                    </tr>
+                </thead>
 
-            <div class="border-t pt-3 grid grid-cols-1 gap-3">
-                {% for field, value in document.extracted_fields.items() %}
-                    <p><span class="text-gray-500">{{ field }}:</span> {{ value or "not detected" }}</p>
-                {% endfor %}
-            </div>
+                <tbody>
+                    {% for requirement in merchant.requirements %}
+                    <tr class="border-t hover:bg-gray-50">
+                        <td class="px-3 py-2 font-medium">
+                            <a href="{{ url_for('web.requirement_case_detail', merchant_id=merchant.id, requirement_id=requirement.id) }}" class="text-blue-600 hover:underline">
+                                {{ requirement.label }}
+                            </a>
+                        </td>
+
+                        <td class="px-3 py-2">{{ requirement.document_count }}</td>
+
+                        <td class="px-3 py-2">
+                            {% if requirement.best_ml_confidence %}
+                                {{ requirement.best_ml_confidence }}%
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td class="px-3 py-2">
+                            {% if requirement.status == "valid" %}
+                                <span class="text-green-600 font-medium">Valid</span>
+                            {% elif requirement.status == "review" %}
+                                <span class="text-yellow-600 font-medium">Review / Action Needed</span>
+                            {% else %}
+                                <span class="text-red-600 font-medium">Missing</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </section>
 
     <section id="ai-agent" class="bg-white border rounded-xl p-5">
-        <h3 class="font-semibold mb-4">Validation Checks</h3>
+        <div class="flex items-center gap-2 mb-4">
+            <span class="w-3 h-3 bg-green-500 rounded-full ai-pulse"></span>
+            <h3 class="font-semibold">LM Analysis</h3>
+        </div>
 
-        <div class="space-y-2 text-sm">
-            {% for check in document.validation_checks %}
-            <div class="p-3 border rounded-lg
-                {% if check.status == 'green' %}bg-green-50 border-green-200
-                {% elif check.status == 'yellow' %}bg-yellow-50 border-yellow-200
-                {% else %}bg-red-50 border-red-200{% endif %}">
-                <p class="font-medium">{{ check.field }}</p>
-                <p class="text-gray-700">{{ check.message }}</p>
+        <div class="space-y-3 max-h-96 overflow-y-auto pr-2">
+            {% for msg in merchant.agent_messages %}
+            <div class="flex gap-3">
+                <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">
+                    AI
+                </span>
+
+                <div>
+                    <div class="bg-gray-100 rounded-lg px-3 py-2 text-sm">
+                        {{ msg.message }}
+                    </div>
+
+                    <p class="text-xs text-gray-400 mt-1">
+                        {{ msg.created_at }}
+                    </p>
+                </div>
             </div>
             {% else %}
-            <p class="text-sm text-gray-500">No validation checks stored for this document.</p>
+            <p class="text-sm text-gray-500">Noch keine Analyse vorhanden.</p>
             {% endfor %}
         </div>
     </section>
 </div>
 
 <div class="bg-white border rounded-xl p-5 mt-6">
-    <h3 class="font-semibold mb-4">Document Preview</h3>
+    <h3 class="font-semibold mb-4">Uploaded Documents</h3>
 
-    <iframe
-        src="{{ url_for('web.view_document_file', document_id=document.id) }}"
-        class="w-full h-[700px] border rounded-xl bg-gray-100">
-    </iframe>
+    <div class="overflow-hidden border rounded-xl">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 text-left">
+                <tr>
+                    <th class="px-3 py-2">Filename</th>
+                    <th class="px-3 py-2">Group</th>
+                    <th class="px-3 py-2">Document Type</th>
+                    <th class="px-3 py-2">Confidence</th>
+                    <th class="px-3 py-2">Status</th>
+                    <th class="px-3 py-2">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for doc in merchant.documents %}
+                <tr class="border-t">
+                    <td class="px-3 py-2">{{ doc.original_filename }}</td>
+
+                    <td class="px-3 py-2">
+                        {% if doc.requirement_id %}
+                            <a href="{{ url_for('web.requirement_case_detail', merchant_id=merchant.id, requirement_id=doc.requirement_id) }}" class="text-blue-600 hover:underline">
+                                {{ doc.requirement_label or "-" }}
+                            </a>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+
+                    <td class="px-3 py-2">{{ doc.ml_document_type or "-" }}</td>
+
+                    <td class="px-3 py-2">
+                        {% if doc.ml_confidence %}
+                            {{ doc.ml_confidence }}%
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+
+                    <td class="px-3 py-2">
+                        {% if doc.status == "valid" %}
+                            <span class="text-green-600 font-medium">Valid</span>
+                        {% elif doc.status == "outdated" %}
+                            <span class="text-red-600 font-medium">Outdated</span>
+                        {% elif doc.status == "review" %}
+                            <span class="text-yellow-600 font-medium">Review</span>
+                        {% elif doc.status == "rejected" %}
+                            <span class="text-red-600 font-medium">Rejected</span>
+                        {% else %}
+                            {{ doc.status }}
+                        {% endif %}
+                    </td>
+
+                    <td class="px-3 py-2">
+                        <div class="flex gap-2">
+                            <a href="{{ url_for('web.document_detail', merchant_id=merchant.id, document_id=doc.id) }}" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
+                                Details
+                            </a>
+
+                            <a href="{{ url_for('web.view_document_file', document_id=doc.id) }}" target="_blank" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
+                                View File
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-3 py-6 text-center text-gray-500">
+                        No documents uploaded yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
-{% if document.raw_text_preview %}
-<div class="bg-white border rounded-xl p-5 mt-6">
-    <h3 class="font-semibold mb-4">Raw Text Preview</h3>
-    <pre class="text-xs bg-gray-900 text-gray-100 p-4 rounded-xl overflow-x-auto whitespace-pre-wrap">{{ document.raw_text_preview }}</pre>
+<div id="shared-chat" class="bg-white border rounded-xl p-5 mt-6">
+    <div class="flex items-center gap-2 mb-4">
+        <span class="w-3 h-3 bg-purple-500 rounded-full"></span>
+        <h3 class="font-semibold">Shared Merchant Chat</h3>
+    </div>
+
+    <div class="space-y-3 max-h-96 overflow-y-auto border rounded-xl bg-gray-50 p-4 mb-4">
+        {% for entry in merchant.chat_messages %}
+            {% if entry.sender == "merchant" %}
+                <div class="flex justify-end">
+                    <div class="bg-blue-600 text-white rounded-lg px-3 py-2 text-sm max-w-xl">
+                        <p class="text-xs font-semibold mb-1">Merchant</p>
+                        <p>{{ entry.message }}</p>
+                        <p class="text-xs text-blue-100 mt-1">{{ entry.created_at }}</p>
+                    </div>
+                </div>
+            {% elif entry.sender == "officer" %}
+                <div class="flex justify-start">
+                    <div class="bg-purple-100 text-purple-900 rounded-lg px-3 py-2 text-sm max-w-xl border border-purple-200">
+                        <p class="text-xs font-semibold mb-1 text-purple-700">Sachbearbeiter</p>
+                        <p>{{ entry.message }}</p>
+                        <p class="text-xs text-purple-500 mt-1">{{ entry.created_at }}</p>
+                    </div>
+                </div>
+            {% else %}
+                <div class="flex justify-start">
+                    <div class="bg-green-100 text-green-900 rounded-lg px-3 py-2 text-sm max-w-xl border border-green-200">
+                        <p class="text-xs font-semibold mb-1 text-green-700">Delegat Agent</p>
+                        <p>{{ entry.message }}</p>
+                        <p class="text-xs text-green-500 mt-1">{{ entry.created_at }}</p>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <p class="text-sm text-gray-500 text-center py-6">
+                Noch kein Chatverlauf vorhanden.
+            </p>
+        {% endfor %}
+    </div>
+
+    {% if merchant.status != "Case Closed" %}
+    <form action="{{ url_for('web.officer_chat_message', merchant_id=merchant.id) }}" method="POST" class="flex gap-2">
+        <input
+            type="text"
+            name="message"
+            placeholder="Als Sachbearbeiter antworten..."
+            required
+            class="flex-1 border rounded-lg px-3 py-2 text-sm"
+        >
+
+        <button class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700">
+            Senden
+        </button>
+    </form>
+    {% endif %}
 </div>
-{% endif %}
 {% endblock %}

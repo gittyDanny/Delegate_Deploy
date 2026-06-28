@@ -6,34 +6,52 @@
 <div class="flex justify-between items-start mt-4 mb-6">
     <div>
         <h2 class="text-2xl font-bold">{{ merchant.name }}</h2>
-        <p class="text-sm text-gray-500">{{ merchant.legal_form }} · {{ merchant.country }} · {{ merchant.email }}</p>
-        <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">{{ merchant.status }}</span>
+        <p class="text-sm text-gray-500">
+            {{ merchant.legal_form }} · {{ merchant.country }} · {{ merchant.email }}
+        </p>
+
+        <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+            {{ merchant.status }}
+        </span>
     </div>
 
     <div class="flex gap-2">
+        <a href="{{ url_for('merchant.login_page') }}" class="px-4 py-2 bg-white border rounded-lg text-sm hover:bg-gray-50">
+            Merchant Portal
+        </a>
+
         <a href="{{ url_for('web.audit_log', merchant_id=merchant.id) }}" class="px-4 py-2 bg-white border rounded-lg text-sm hover:bg-gray-50">
             Audit Log
         </a>
 
-        <a href="{{ url_for('web.batch_upload_page', merchant_id=merchant.id) }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-            Batch Upload
-        </a>
+        {% if merchant.status != "Case Closed" and merchant.status == "Ready for Human Risk Review" %}
+        <form action="{{ url_for('web.close_case', merchant_id=merchant.id) }}" method="POST">
+            <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800">
+                Close Case
+            </button>
+        </form>
+        {% endif %}
     </div>
 </div>
 
+{% if merchant.status == "Case Closed" %}
+<div class="bg-gray-100 border rounded-xl p-4 mb-6 text-sm text-gray-700">
+    Dieser Case ist geschlossen. Der Chat und Audit Log bleiben weiterhin sichtbar.
+</div>
+{% endif %}
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <section id="documents" class="bg-white border rounded-xl p-5">
-        <h3 class="font-semibold mb-4">Document Groups / Cases</h3>
+        <h3 class="font-semibold mb-4">Document Groups / Case Form</h3>
 
         <div class="overflow-hidden border rounded-xl">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 text-left">
                     <tr>
-                        <th class="px-3 py-2">Case</th>
+                        <th class="px-3 py-2">Requirement</th>
                         <th class="px-3 py-2">Docs</th>
-                        <th class="px-3 py-2">Best Confidence</th>
+                        <th class="px-3 py-2">Confidence</th>
                         <th class="px-3 py-2">Status</th>
-                        <th class="px-3 py-2"></th>
                     </tr>
                 </thead>
 
@@ -45,7 +63,9 @@
                                 {{ requirement.label }}
                             </a>
                         </td>
+
                         <td class="px-3 py-2">{{ requirement.document_count }}</td>
+
                         <td class="px-3 py-2">
                             {% if requirement.best_ml_confidence %}
                                 {{ requirement.best_ml_confidence }}%
@@ -53,48 +73,54 @@
                                 -
                             {% endif %}
                         </td>
+
                         <td class="px-3 py-2">
                             {% if requirement.status == "valid" %}
                                 <span class="text-green-600 font-medium">Valid</span>
                             {% elif requirement.status == "review" %}
-                                <span class="text-yellow-600 font-medium">Review</span>
+                                <span class="text-yellow-600 font-medium">Review / Action Needed</span>
                             {% else %}
                                 <span class="text-red-600 font-medium">Missing</span>
                             {% endif %}
                         </td>
-                        <td class="px-3 py-2 text-right">
-                            <a href="{{ url_for('web.requirement_case_detail', merchant_id=merchant.id, requirement_id=requirement.id) }}" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
-                                Open
-                            </a>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="px-3 py-6 text-center text-gray-500">
+                            No document requirements available.
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-
-        <form action="{{ url_for('web.upload_document', merchant_id=merchant.id) }}" method="POST" enctype="multipart/form-data" class="border-t pt-4 mt-5">
-            <label class="block text-sm font-medium mb-2">Single Document Upload</label>
-            <input type="file" name="document" class="block w-full text-sm border rounded-lg p-2 mb-3" accept=".pdf,.png,.jpg,.jpeg,.txt" required>
-            <button class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800">Analyse Single Document</button>
-        </form>
     </section>
 
     <section id="ai-agent" class="bg-white border rounded-xl p-5">
         <div class="flex items-center gap-2 mb-4">
             <span class="w-3 h-3 bg-green-500 rounded-full ai-pulse"></span>
-            <h3 class="font-semibold">AI Agent</h3>
+            <h3 class="font-semibold">LM Analysis</h3>
         </div>
 
         <div class="space-y-3 max-h-96 overflow-y-auto pr-2">
             {% for msg in merchant.agent_messages %}
             <div class="flex gap-3">
-                <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">AI</span>
+                <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">
+                    AI
+                </span>
+
                 <div>
-                    <div class="bg-gray-100 rounded-lg px-3 py-2 text-sm">{{ msg.message }}</div>
-                    <p class="text-xs text-gray-400 mt-1">{{ msg.created_at }}</p>
+                    <div class="bg-gray-100 rounded-lg px-3 py-2 text-sm">
+                        {{ msg.message }}
+                    </div>
+
+                    <p class="text-xs text-gray-400 mt-1">
+                        {{ msg.created_at }}
+                    </p>
                 </div>
             </div>
+            {% else %}
+            <p class="text-sm text-gray-500">Noch keine Analyse vorhanden.</p>
             {% endfor %}
         </div>
     </section>
@@ -119,17 +145,18 @@
             <tbody>
                 {% for doc in merchant.documents %}
                 <tr class="border-t">
-                    <td class="px-3 py-2">{{ doc.original_filename }}</td>
-                    <td class="px-3 py-2">
-                        {% if doc.requirement_id %}
-                            <a href="{{ url_for('web.requirement_case_detail', merchant_id=merchant.id, requirement_id=doc.requirement_id) }}" class="text-blue-600 hover:underline">
-                                {{ doc.requirement_label or "-" }}
-                            </a>
-                        {% else %}
-                            -
-                        {% endif %}
+                    <td class="px-3 py-2 font-medium">
+                        {{ doc.original_filename }}
                     </td>
-                    <td class="px-3 py-2">{{ doc.ml_document_type or "-" }}</td>
+
+                    <td class="px-3 py-2">
+                        {{ doc.requirement_label or "-" }}
+                    </td>
+
+                    <td class="px-3 py-2">
+                        {{ doc.ml_document_type or "-" }}
+                    </td>
+
                     <td class="px-3 py-2">
                         {% if doc.ml_confidence %}
                             {{ doc.ml_confidence }}%
@@ -137,9 +164,12 @@
                             -
                         {% endif %}
                     </td>
+
                     <td class="px-3 py-2">
                         {% if doc.status == "valid" %}
                             <span class="text-green-600 font-medium">Valid</span>
+                        {% elif doc.status == "outdated" %}
+                            <span class="text-red-600 font-medium">Outdated</span>
                         {% elif doc.status == "review" %}
                             <span class="text-yellow-600 font-medium">Review</span>
                         {% elif doc.status == "rejected" %}
@@ -148,13 +178,18 @@
                             {{ doc.status }}
                         {% endif %}
                     </td>
+
                     <td class="px-3 py-2">
                         <div class="flex gap-2">
-                            <a href="{{ url_for('web.document_detail', merchant_id=merchant.id, document_id=doc.id) }}" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
+                            <a href="{{ url_for('web.document_detail', merchant_id=merchant.id, document_id=doc.id) }}"
+                               class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
                                 Details
                             </a>
-                            <a href="{{ url_for('web.view_document_file', document_id=doc.id) }}" target="_blank" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
-                                View PDF
+
+                            <a href="{{ url_for('web.view_document_file', document_id=doc.id) }}"
+                               target="_blank"
+                               class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
+                                View File
                             </a>
                         </div>
                     </td>
@@ -171,22 +206,60 @@
     </div>
 </div>
 
-{% if merchant.last_document %}
-<div class="bg-white border rounded-xl p-5 mt-6">
-    <h3 class="font-semibold mb-4">Last Extracted Document Data</h3>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-        <p><span class="text-gray-500">File:</span> {{ merchant.last_document.original_filename }}</p>
-        <p><span class="text-gray-500">Document Type:</span> {{ merchant.last_document.document_label }}</p>
-        <p><span class="text-gray-500">Classification Confidence:</span> {{ merchant.last_document.classification_confidence or 0 }}%</p>
-        <p><span class="text-gray-500">Validation:</span> {{ merchant.last_document.validation_label or "-" }}</p>
+<div id="shared-chat" class="bg-white border rounded-xl p-5 mt-6">
+    <div class="flex items-center gap-2 mb-4">
+        <span class="w-3 h-3 bg-purple-500 rounded-full"></span>
+        <h3 class="font-semibold">Shared Merchant Chat</h3>
     </div>
 
-    <div class="mt-4 border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-        {% for field, value in merchant.last_document.extracted_fields.items() %}
-            <p><span class="text-gray-500">{{ field }}:</span> {{ value or "not detected" }}</p>
+    <div class="space-y-3 max-h-96 overflow-y-auto border rounded-xl bg-gray-50 p-4 mb-4">
+        {% for entry in merchant.chat_messages %}
+            {% if entry.sender == "merchant" %}
+                <div class="flex justify-end">
+                    <div class="bg-blue-600 text-white rounded-lg px-3 py-2 text-sm max-w-xl">
+                        <p class="text-xs font-semibold mb-1">Merchant</p>
+                        <p>{{ entry.message }}</p>
+                        <p class="text-xs text-blue-100 mt-1">{{ entry.created_at }}</p>
+                    </div>
+                </div>
+            {% elif entry.sender == "officer" %}
+                <div class="flex justify-start">
+                    <div class="bg-purple-100 text-purple-900 rounded-lg px-3 py-2 text-sm max-w-xl border border-purple-200">
+                        <p class="text-xs font-semibold mb-1 text-purple-700">Sachbearbeiter</p>
+                        <p>{{ entry.message }}</p>
+                        <p class="text-xs text-purple-500 mt-1">{{ entry.created_at }}</p>
+                    </div>
+                </div>
+            {% else %}
+                <div class="flex justify-start">
+                    <div class="bg-green-100 text-green-900 rounded-lg px-3 py-2 text-sm max-w-xl border border-green-200">
+                        <p class="text-xs font-semibold mb-1 text-green-700">Delegat Agent</p>
+                        <p>{{ entry.message }}</p>
+                        <p class="text-xs text-green-500 mt-1">{{ entry.created_at }}</p>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <p class="text-sm text-gray-500 text-center py-6">
+                Noch kein Chatverlauf vorhanden.
+            </p>
         {% endfor %}
     </div>
+
+    {% if merchant.status != "Case Closed" %}
+    <form action="{{ url_for('web.officer_chat_message', merchant_id=merchant.id) }}" method="POST" class="flex gap-2">
+        <input
+            type="text"
+            name="message"
+            placeholder="Als Sachbearbeiter antworten..."
+            required
+            class="flex-1 border rounded-lg px-3 py-2 text-sm"
+        >
+
+        <button class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700">
+            Senden
+        </button>
+    </form>
+    {% endif %}
 </div>
-{% endif %}
 {% endblock %}

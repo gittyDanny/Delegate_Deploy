@@ -6,26 +6,31 @@
     <title>Dashboard - {{ company_name }}</title>
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
-        * { font-family: 'DM Sans', sans-serif; }
+        * {
+            font-family: 'DM Sans', sans-serif;
+        }
     </style>
 </head>
+
 <body class="min-h-screen bg-gray-50">
     <header class="bg-white border-b border-gray-200 shadow-sm">
         <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
             <div>
                 <h1 class="text-2xl font-bold text-blue-600">Willkommen, {{ company_name }}</h1>
                 <p class="text-sm text-gray-600 mt-1">
-                    Hier können Sie ESG-relevante Unterlagen hochladen und Rückfragen beantworten.
+                    Hier können Sie Ihre KYC-Unterlagen hochladen und Rückfragen beantworten.
                 </p>
             </div>
-            <a href="{{ url_for('merchant.logout') }}" 
+
+            <a href="{{ url_for('merchant.logout') }}"
                class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition">
-               Abmelden
+                Abmelden
             </a>
         </div>
     </header>
-    
+
     {% with messages = get_flashed_messages() %}
         {% if messages %}
             <div class="max-w-7xl mx-auto px-6 mt-4">
@@ -37,48 +42,72 @@
             </div>
         {% endif %}
     {% endwith %}
-    
+
     <main class="max-w-7xl mx-auto px-6 py-8">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="space-y-6">
                 <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Dokument hochladen</h2>
-                    
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                        Dokumente hochladen
+                    </h2>
+
                     <form method="POST" action="{{ url_for('merchant.upload') }}" enctype="multipart/form-data">
-                    <div class="mb-4">
-                            <input 
-                                type="file" 
-                                id="file" 
-                                name="file" 
-                                accept=".pdf,.docx,.xlsx,.csv,.png,.jpg,.jpeg,.txt" 
+                        <div class="mb-4">
+                            <input
+                                type="file"
+                                id="files"
+                                name="files"
+                                multiple
+                                accept=".pdf,.docx,.xlsx,.csv,.png,.jpg,.jpeg,.txt"
                                 required
                                 class="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition"
                             >
                         </div>
-                        
-                        <button 
-                            type="submit" 
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition shadow-md hover:shadow-lg"
-                        >
-                            Dokument hochladen
+
+                        <button
+                            type="submit"
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition shadow-md hover:shadow-lg">
+                            Dokumente hochladen
                         </button>
-                        
+
                         <p class="text-xs text-gray-500 mt-3 text-center">
                             Unterstützte Formate: PDF, DOCX, XLSX, CSV, PNG, JPG, TXT
                         </p>
                     </form>
-                     </div>
-                
+                </div>
+
                 <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Hochgeladene Dokumente</h2>
-                    
-                    {% if uploaded_files %}
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                        Hochgeladene Dokumente
+                    </h2>
+
+                    {% if uploaded_documents %}
                         <ul class="space-y-2">
-                            {% for file in uploaded_files %}
+                            {% for document in uploaded_documents %}
                                 <li class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
                                     <span class="text-2xl">📄</span>
-                                    <span class="flex-1 text-sm font-medium text-gray-700">{{ file }}</span>
-                                    <span class="text-xs text-green-600 font-medium">✓</span>
+
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium text-gray-700">
+                                            {{ document.original_filename }}
+                                        </p>
+
+                                        <p class="text-xs text-gray-500">
+                                            {{ document.requirement_label or document.ml_document_type or "Noch nicht zugeordnet" }}
+                                        </p>
+                                    </div>
+
+                                    {% if document.status == "valid" %}
+                                        <span class="text-xs text-green-600 font-medium">gültig</span>
+                                    {% elif document.status == "outdated" %}
+                                        <span class="text-xs text-red-600 font-medium">veraltet</span>
+                                    {% elif document.status == "review" %}
+                                        <span class="text-xs text-yellow-600 font-medium">Prüfung</span>
+                                    {% elif document.status == "missing" %}
+                                        <span class="text-xs text-red-600 font-medium">fehlt</span>
+                                    {% else %}
+                                        <span class="text-xs text-gray-500 font-medium">{{ document.status }}</span>
+                                    {% endif %}
                                 </li>
                             {% endfor %}
                         </ul>
@@ -89,62 +118,74 @@
                     {% endif %}
                 </div>
             </div>
-             <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col" style="height: 600px;">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Chat</h2>
-                
+
+            <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col" style="height: 650px;">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                    Chat
+                </h2>
+
                 <div id="chatBox" class="flex-1 overflow-y-auto border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50 space-y-3">
                     {% if chat_history %}
                         {% for entry in chat_history %}
-                            {% if entry.sender == 'user' %}
+                            {% if entry.sender == 'merchant' %}
                                 <div class="flex justify-end">
                                     <div class="bg-blue-600 text-white rounded-lg px-4 py-2 max-w-xs">
                                         <p class="text-xs font-semibold mb-1">Sie</p>
                                         <p class="text-sm">{{ entry.message }}</p>
                                     </div>
                                 </div>
+                            {% elif entry.sender == 'officer' %}
+                                <div class="flex justify-start">
+                                    <div class="bg-purple-100 text-purple-900 rounded-lg px-4 py-2 max-w-xs border border-purple-200">
+                                        <p class="text-xs font-semibold mb-1 text-purple-700">Sachbearbeiter</p>
+                                        <p class="text-sm">{{ entry.message }}</p>
+                                    </div>
+                                </div>
                             {% else %}
                                 <div class="flex justify-start">
                                     <div class="bg-green-100 text-green-900 rounded-lg px-4 py-2 max-w-xs border border-green-200">
-                                        <p class="text-xs font-semibold mb-1 text-green-700">System</p>
+                                        <p class="text-xs font-semibold mb-1 text-green-700">Delegate Agent</p>
                                         <p class="text-sm">{{ entry.message }}</p>
                                     </div>
                                 </div>
                             {% endif %}
-                            {% endfor %}
+                        {% endfor %}
                     {% else %}
-                        <p class="text-gray-400 text-center italic py-8">Noch keine Nachrichten.</p>
+                        <p class="text-gray-400 text-center italic py-8">
+                            Noch keine Nachrichten.
+                        </p>
                     {% endif %}
                 </div>
-                
+
                 <form id="chatForm" class="flex gap-2">
-                    <input 
-                        type="text" 
-                        id="chatMessage" 
-                        name="message" 
-                        placeholder="Nachricht eingeben..." 
+                    <input
+                        type="text"
+                        id="chatMessage"
+                        name="message"
+                        placeholder="Nachricht eingeben..."
                         required
                         class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                    <button 
-                        type="submit" 
-                        class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition shadow-md hover:shadow-lg"
-                    >
+
+                    <button
+                        type="submit"
+                        class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition shadow-md hover:shadow-lg">
                         Senden
                     </button>
                 </form>
-                  </div>
+            </div>
         </div>
     </main>
-    
+
     <script>
         document.getElementById('chatForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             const messageInput = document.getElementById('chatMessage');
             const message = messageInput.value.trim();
-            
+
             if (!message) return;
-            
+
             fetch('{{ url_for("merchant.chat") }}', {
                 method: 'POST',
                 headers: {
@@ -156,11 +197,7 @@
             .then(data => {
                 if (data.success) {
                     const chatBox = document.getElementById('chatBox');
-                    const noMessages = chatBox.querySelector('p.text-gray-400');
-                    if (noMessages) {
-                        noMessages.remove();
-                    }
-                    
+
                     const userMsg = document.createElement('div');
                     userMsg.className = 'flex justify-end';
                     userMsg.innerHTML = `
@@ -170,17 +207,17 @@
                         </div>
                     `;
                     chatBox.appendChild(userMsg);
-                    
+
                     const systemMsg = document.createElement('div');
                     systemMsg.className = 'flex justify-start';
                     systemMsg.innerHTML = `
                         <div class="bg-green-100 text-green-900 rounded-lg px-4 py-2 max-w-xs border border-green-200">
-                            <p class="text-xs font-semibold mb-1 text-green-700">System</p>
+                            <p class="text-xs font-semibold mb-1 text-green-700">Delegat Agent</p>
                             <p class="text-sm">${data.system_response}</p>
                         </div>
-                         `;
+                    `;
                     chatBox.appendChild(systemMsg);
-                    
+
                     chatBox.scrollTop = chatBox.scrollHeight;
                     messageInput.value = '';
                 }
@@ -190,7 +227,7 @@
                 alert('Fehler beim Senden der Nachricht.');
             });
         });
-        
+
         window.addEventListener('load', function() {
             const chatBox = document.getElementById('chatBox');
             chatBox.scrollTop = chatBox.scrollHeight;

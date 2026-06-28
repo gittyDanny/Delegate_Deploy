@@ -19,9 +19,15 @@
         {% endif %}
     </div>
 
-    <a href="{{ url_for('web.batch_upload_page', merchant_id=merchant.id) }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">
-        Upload More Documents
-    </a>
+    <div class="flex gap-2">
+        <a href="{{ url_for('merchant.login_page') }}" class="px-4 py-2 bg-white border rounded-lg text-sm hover:bg-gray-50">
+            Merchant Portal
+        </a>
+
+        <a href="{{ url_for('web.audit_log', merchant_id=merchant.id) }}" class="px-4 py-2 bg-white border rounded-lg text-sm hover:bg-gray-50">
+            Audit Log
+        </a>
+    </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -44,7 +50,11 @@
                     {% for doc in requirement.documents %}
                     <tr class="border-t">
                         <td class="px-3 py-2 font-medium">{{ doc.original_filename }}</td>
-                        <td class="px-3 py-2">{{ doc.document_label or doc.ml_document_type or "-" }}</td>
+
+                        <td class="px-3 py-2">
+                            {{ doc.document_label or doc.ml_document_type or "-" }}
+                        </td>
+
                         <td class="px-3 py-2">
                             {% if doc.classification_confidence %}
                                 {{ doc.classification_confidence }}%
@@ -54,9 +64,12 @@
                                 -
                             {% endif %}
                         </td>
+
                         <td class="px-3 py-2">
                             {% if doc.status == "valid" %}
                                 <span class="text-green-600 font-medium">Valid</span>
+                            {% elif doc.status == "outdated" %}
+                                <span class="text-red-600 font-medium">Outdated</span>
                             {% elif doc.status == "review" %}
                                 <span class="text-yellow-600 font-medium">Review</span>
                             {% elif doc.status == "rejected" %}
@@ -65,13 +78,15 @@
                                 {{ doc.status }}
                             {% endif %}
                         </td>
+
                         <td class="px-3 py-2">
                             <div class="flex gap-2">
                                 <a href="{{ url_for('web.document_detail', merchant_id=merchant.id, document_id=doc.id) }}" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
                                     Details
                                 </a>
+
                                 <a href="{{ url_for('web.view_document_file', document_id=doc.id) }}" target="_blank" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-50">
-                                    View PDF
+                                    View File
                                 </a>
                             </div>
                         </td>
@@ -120,11 +135,17 @@
                 </a>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                {% for field, value in doc.extracted_fields.items() %}
-                    <p><span class="text-gray-500">{{ field }}:</span> {{ value or "not detected" }}</p>
-                {% endfor %}
-            </div>
+            {% if doc.extracted_fields %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    {% for field, value in doc.extracted_fields.items() %}
+                        <p><span class="text-gray-500">{{ field }}:</span> {{ value or "nicht erkannt" }}</p>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-sm text-gray-500">
+                    No extracted fields stored for this document yet.
+                </p>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
